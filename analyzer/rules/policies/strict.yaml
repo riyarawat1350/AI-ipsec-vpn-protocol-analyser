@@ -1,0 +1,106 @@
+policy_id: "strict"
+version: "1.0"
+description: "Strict IPsec security policy (requires AEAD + DH Group 19+ / 256-bit+)"
+
+tables:
+  dh_impact:
+    "1": 5
+    "2": 5
+    "5": 4
+    "14": 2    # MODP-2048: Disallowed in strict mode (requires group 19+ / 128-bit quantum security)
+    "22": 5
+    "23": 4
+    "24": 4
+  encr_impact:
+    "1": 5
+    "2": 5
+    "3": 4
+    "4": 5
+    "5": 5
+    "6": 5
+    "7": 5
+    "11": 5
+    "12": 2    # AES-CBC: Disallowed in strict mode (requires AEAD)
+  integ_impact:
+    "1": 5
+    "2": 3     # SHA1: High/Medium in strict mode
+
+rules:
+  - id: "CRY-DH-001"
+    target: "observation"
+    category: "Cryptography"
+    title: "Insufficient Diffie-Hellman group in strict mode: {name} (group {id})"
+    explanation: "Diffie-Hellman group {name} ({id}) does not meet strict policy baseline (Group 19+ / 256-bit ECC)."
+    why_this_matters: "Strict compliance requires 128-bit minimum symmetric security equivalent."
+    condition:
+      all:
+        - field: "kind"
+          op: "eq"
+          value: "dh"
+        - field: "id"
+          op: "in"
+          value: [1, 2, 5, 14, 22, 23, 24]
+    impact:
+      table: "dh_impact"
+      default: 3
+    likelihood:
+      from: "role"
+    confidence: 1.0
+    group_by: ["session_id", "kind", "id"]
+    references: ["CNSA Suite 1.0", "RFC 8247"]
+    mitre: ["T1600.001"]
+    recommendation_id: "REC-CRY-DH-001"
+    params:
+      min_modp_bits: 3072
+
+  - id: "CRY-ENC-001"
+    target: "observation"
+    category: "Cryptography"
+    title: "Non-AEAD or weak encryption cipher: {name} ({id})"
+    explanation: "Encryption cipher {name} ({id}) does not meet strict AEAD policy."
+    why_this_matters: "Only authenticated encryption (AES-GCM or ChaCha20-Poly1305) is permitted under strict policy."
+    condition:
+      all:
+        - field: "kind"
+          op: "eq"
+          value: "encr"
+        - field: "id"
+          op: "in"
+          value: [1, 2, 3, 4, 5, 6, 7, 11, 12]
+    impact:
+      table: "encr_impact"
+      default: 3
+    likelihood:
+      from: "role"
+    confidence: 1.0
+    group_by: ["session_id", "kind", "id"]
+    references: ["RFC 8247 §2.1"]
+    mitre: ["T1600.001"]
+    recommendation_id: "REC-CRY-ENC-001"
+    params: {}
+
+  - id: "CRY-INT-001"
+    target: "observation"
+    category: "Cryptography"
+    title: "Weak hash/integrity algorithm: {name} ({id})"
+    explanation: "Algorithm {name} ({id}) is prohibited under strict policy."
+    why_this_matters: "Strict policy mandates SHA2-256 or higher."
+    condition:
+      all:
+        - field: "kind"
+          op: "in"
+          value: ["prf", "integ", "hash"]
+        - field: "id"
+          op: "in"
+          value: [1, 2]
+    impact:
+      table: "integ_impact"
+      default: 3
+    likelihood:
+      from: "role"
+    confidence: 1.0
+    group_by: ["session_id", "kind", "id"]
+    references: ["NIST SP 800-131A"]
+    mitre: ["T1600.001"]
+    recommendation_id: "REC-CRY-INT-001"
+    params: {}

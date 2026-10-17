@@ -6,35 +6,31 @@ tables:
   dh_impact:
     "1": 5     # MODP-768: Broken
     "2": 4     # MODP-1024: Weak
-    "5": 3     # MODP-1536: Legacy
-    "14": 1    # MODP-2048: Acceptable
-    "19": 1    # ECP-256: Strong
-    "20": 1    # ECP-384: Strong
-    "21": 1    # ECP-521: Strong
-    "31": 1    # Curve25519: Strong
+    "5": 3     # MODP-1536: Deprecated
+    "22": 4    # MODP-1024/160: Weak
+    "23": 3    # MODP-2048/224: Deprecated
+    "24": 3    # MODP-2048/256: Deprecated
   encr_impact:
     "1": 5     # DES-IV64: Broken
     "2": 5     # DES: Broken
-    "3": 3     # 3DES: Deprecated
+    "3": 3     # 3DES: Deprecated (Sweet32)
+    "4": 4     # RC5: Weak
+    "5": 4     # IDEA: Weak
+    "6": 4     # CAST: Weak
+    "7": 4     # Blowfish: Weak (64-bit block)
     "11": 5    # NULL: Plaintext
-    "12": 1    # AES-CBC
-    "18": 1    # AES-GCM-8
-    "19": 1    # AES-GCM-12
-    "20": 1    # AES-GCM-16
-    "28": 1    # ChaCha20-Poly1305
   integ_impact:
-    "0": 5     # NONE
-    "1": 4     # HMAC-MD5-96: Weak
-    "2": 2     # HMAC-SHA1-96: Deprecated
-    "12": 1    # HMAC-SHA2-256-128: Acceptable
+    "1": 4     # MD5: Weak
+    "2": 1     # SHA1: Phased-out legacy
 
 rules:
+  # ── CRY-DH-001: Weak or broken Diffie-Hellman group ─────────────────────────
   - id: "CRY-DH-001"
     target: "observation"
     category: "Cryptography"
     title: "Weak or broken Diffie-Hellman group {name} (group {id})"
-    explanation: "Diffie-Hellman group {name} ({id}) provides insufficient key exchange security."
-    why_this_matters: "Attackers can solve discrete logarithms for small groups, breaking forward secrecy."
+    explanation: "Diffie-Hellman group {name} ({id}) provides insufficient key exchange security under modern standards."
+    why_this_matters: "Attackers with sufficient computing power can solve discrete logarithms for small groups, compromising forward secrecy."
     condition:
       all:
         - field: "kind"
@@ -54,4 +50,109 @@ rules:
     mitre: ["T1600.001"]
     recommendation_id: "REC-CRY-DH-001"
     params:
-      threshold_bits: 2048
+      min_modp_bits: 2048
+
+  # ── CRY-ENC-001: Broken or deprecated encryption cipher ─────────────────────
+  - id: "CRY-ENC-001"
+    target: "observation"
+    category: "Cryptography"
+    title: "Deprecated or broken encryption algorithm {name} ({id})"
+    explanation: "Encryption cipher {name} ({id}) is deprecated or cryptographically broken."
+    why_this_matters: "Broken ciphers like DES and 3DES are susceptible to practical brute force or collision attacks."
+    condition:
+      all:
+        - field: "kind"
+          op: "eq"
+          value: "encr"
+        - field: "id"
+          op: "in"
+          value: [1, 2, 3, 4, 5, 6, 7, 11]
+    impact:
+      table: "encr_impact"
+      default: 3
+    likelihood:
+      from: "role"
+    confidence: 1.0
+    group_by: ["session_id", "kind", "id"]
+    references: ["NIST SP 800-131A Rev. 2", "RFC 8247 §2.1"]
+    mitre: ["T1600.001"]
+    recommendation_id: "REC-CRY-ENC-001"
+    params:
+      allowed_ciphers: ["AES-GCM", "AES-CBC", "ChaCha20-Poly1305"]
+
+  # ── CRY-ENC-002: Legacy CBC mode encryption ─────────────────────────────────
+  - id: "CRY-ENC-002"
+    target: "observation"
+    category: "Cryptography"
+    title: "Legacy CBC mode encryption in use: {name}"
+    explanation: "AES-CBC is in use. While secure with HMAC, migration to authenticated encryption (AEAD like AES-GCM) is recommended."
+    why_this_matters: "AEAD algorithms prevent padding oracle attacks and provide higher cryptographic efficiency."
+    condition:
+      all:
+        - field: "kind"
+          op: "eq"
+          value: "encr"
+        - field: "id"
+          op: "eq"
+          value: 12
+    impact: 1
+    likelihood:
+      from: "role"
+    confidence: 1.0
+    override_severity: "Info"
+    group_by: ["session_id", "kind", "id"]
+    references: ["RFC 8247 §2.1.2"]
+    recommendation_id: "REC-CRY-ENC-002"
+    params: {}
+
+  # ── CRY-INT-001: Weak integrity or PRF hash algorithm ───────────────────────
+  - id: "CRY-INT-001"
+    target: "observation"
+    category: "Cryptography"
+    title: "Weak hash/integrity algorithm in use: {name} ({id})"
+    explanation: "The integrity or PRF algorithm {name} ({id}) has known collision or length-extension vulnerabilities."
+    why_this_matters: "Using MD5 or SHA1 risks integrity degradation and message forgery."
+    condition:
+      all:
+        - field: "kind"
+          op: "in"
+          value: ["prf", "integ", "hash"]
+        - field: "id"
+          op: "in"
+          value: [1, 2]
+    impact:
+      table: "integ_impact"
+      default: 2
+    likelihood:
+      from: "role"
+    confidence: 1.0
+    group_by: ["session_id", "kind", "id"]
+    references: ["NIST SP 800-131A", "RFC 8247 §2.2"]
+    mitre: ["T1600.001"]
+    recommendation_id: "REC-CRY-INT-001"
+    params:
+      min_hash_bits: 256
+
+  # ── CRY-INT-002: Missing integrity protection ───────────────────────────────
+  - id: "CRY-INT-002"
+    target: "observation"
+    category: "Cryptography"
+    title: "Missing integrity algorithm (NONE) with non-AEAD cipher"
+    explanation: "Integrity protection algorithm is set to NONE (id 0) without an authenticated encryption cipher."
+    why_this_matters: "Unauthenticated encryption allows active attackers to alter encrypted payloads undetected."
+    condition:
+      all:
+        - field: "kind"
+          op: "eq"
+          value: "integ"
+        - field: "id"
+          op: "eq"
+          value: 0
+    impact: 5
+    likelihood:
+      from: "role"
+    confidence: 1.0
+    group_by: ["session_id", "kind", "id"]
+    references: ["RFC 7296 §3.3.2", "RFC 8247 §2.2"]
+    recommendation_id: "REC-CRY-INT-002"
+    params: {}

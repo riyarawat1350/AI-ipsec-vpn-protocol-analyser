@@ -1,0 +1,94 @@
+policy_id: "legacy_tolerant"
+version: "1.0"
+description: "Legacy-tolerant IPsec security policy (permits 3DES and SHA-1 with warnings)"
+
+tables:
+  dh_impact:
+    "1": 5     # MODP-768: Broken
+    "2": 3     # MODP-1024: Tolerated as legacy Medium
+    "5": 2     # MODP-1536: Low
+  encr_impact:
+    "1": 5     # DES: Broken
+    "2": 5     # DES: Broken
+    "3": 2     # 3DES: Tolerated as Low
+    "11": 5    # NULL: Plaintext
+  integ_impact:
+    "1": 4     # MD5: Weak
+    "2": 1     # SHA1: Tolerated
+
+rules:
+  - id: "CRY-DH-001"
+    target: "observation"
+    category: "Cryptography"
+    title: "Weak or broken Diffie-Hellman group {name} (group {id})"
+    explanation: "Group {id} is weak even under legacy-tolerant policy."
+    why_this_matters: "Diffie-Hellman groups below 2048-bit are vulnerable to attacks."
+    condition:
+      all:
+        - field: "kind"
+          op: "eq"
+          value: "dh"
+        - field: "id"
+          op: "in"
+          value: [1, 2, 5]
+    impact:
+      table: "dh_impact"
+      default: 2
+    likelihood:
+      from: "role"
+    confidence: 1.0
+    group_by: ["session_id", "kind", "id"]
+    references: ["RFC 8247 §2.4"]
+    mitre: ["T1600.001"]
+    recommendation_id: "REC-CRY-DH-001"
+    params: {}
+
+  - id: "CRY-ENC-001"
+    target: "observation"
+    category: "Cryptography"
+    title: "Broken encryption cipher: {name} ({id})"
+    explanation: "Ciphers like DES and NULL are broken even under legacy operations."
+    why_this_matters: "Single DES and NULL cipher provide no confidential protection."
+    condition:
+      all:
+        - field: "kind"
+          op: "eq"
+          value: "encr"
+        - field: "id"
+          op: "in"
+          value: [1, 2, 3, 11]
+    impact:
+      table: "encr_impact"
+      default: 2
+    likelihood:
+      from: "role"
+    confidence: 1.0
+    group_by: ["session_id", "kind", "id"]
+    references: ["RFC 8247"]
+    mitre: ["T1600.001"]
+    recommendation_id: "REC-CRY-ENC-001"
+    params: {}
+
+  - id: "CRY-INT-001"
+    target: "observation"
+    category: "Cryptography"
+    title: "Broken integrity algorithm: {name} ({id})"
+    explanation: "MD5 integrity is cryptographically broken."
+    why_this_matters: "MD5 should never be used for integrity verification."
+    condition:
+      all:
+        - field: "kind"
+          op: "in"
+          value: ["prf", "integ", "hash"]
+        - field: "id"
+          op: "eq"
+          value: 1
+    impact: 4
+    likelihood:
+      from: "role"
+    confidence: 1.0
+    group_by: ["session_id", "kind", "id"]
+    references: ["RFC 8247"]
+    mitre: ["T1600.001"]
+    recommendation_id: "REC-CRY-INT-001"
+    params: {}
