@@ -1,223 +1,342 @@
-"""Database repository helpers for CRUD operations."""
+"""MongoDB repositories — CRUD helpers for all collections.
 
+Replaces backend/app/db/repositories.py (SQLAlchemy version).
+All IDs are UUID4 strings stored as MongoDB _id field.
+"""
+
+from __future__ import annotations
+
+import uuid
+from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import desc, select
-from sqlalchemy.orm import Session
+from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from backend.app.db.models import (
-    AnalysisModel,
-    EvidenceModel,
-    FindingModel,
-    IkeMessageModel,
-    IkeSessionModel,
-    IpsecFlowModel,
-    ReportModel,
-    UploadModel,
-)
+from backend.app.db.mongo import Collections
 
+
+def _now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _new_id() -> str:
+    return str(uuid.uuid4())
+
+
+# ---------------------------------------------------------------------------
+# Upload repository
+# ---------------------------------------------------------------------------
 
 class UploadRepository:
-    """Repository for uploads management."""
+    def __init__(self, db: AsyncIOMotorDatabase) -> None:
+        self._col = db[Collections.UPLOADS]
 
-    def __init__(self, db: Session):
-        self.db = db
-
-    def create(
+    async def create(
         self,
         original_filename: str,
         stored_path: str,
         sha256: str,
         size_bytes: int,
         detected_format: str,
-    ) -> UploadModel:
-        upload = UploadModel(
-            original_filename=original_filename,
-            stored_path=stored_path,
-            sha256=sha256,
-            size_bytes=size_bytes,
-            detected_format=detected_format,
-        )
-        self.db.add(upload)
-        self.db.commit()
-        self.db.refresh(upload)
-        return upload
+    ) -> dict[str, Any]:
+        doc = {
+            "_id": _new_id(),
+            "original_filename": original_filename,
+            "stored_path": stored_path,
+            "sha256": sha256,
+            "size_bytes": size_bytes,
+            "detected_format": detected_format,
+            "created_at": _now(),
+        }
+        await self._col.insert_one(doc)
+        return doc
 
-    def get_by_id(self, upload_id: str) -> UploadModel | None:
-        return self.db.execute(select(UploadModel).where(UploadModel.id == upload_id)).scalar_one_or_none()
+    async def get_by_id(self, upload_id: str) -> dict[str, Any] | None:
+        return await self._col.find_one({"_id": upload_id})
 
-    def get_by_sha256(self, sha256: str) -> UploadModel | None:
-        return self.db.execute(select(UploadModel).where(UploadModel.sha256 == sha256)).scalar_one_or_none()
+    async def get_by_sha256(self, sha256: str) -> dict[str, Any] | None:
+        return await self._col.find_one({"sha256": sha256})
 
-    def delete(self, upload: UploadModel) -> None:
-        self.db.delete(upload)
-        self.db.commit()
+    async def delete(self, upload_id: str) -> bool:
+        result = await self._col.delete_one({"_id": upload_id})
+        return result.deleted_count > 0
 
+
+# ---------------------------------------------------------------------------
+# Analysis repository
+# ---------------------------------------------------------------------------
 
 class AnalysisRepository:
-    """Repository for analysis jobs and results."""
+    def __init__(self, db: AsyncIOMotorDatabase) -> None:
+        self._col = db[Collections.ANALYSES]
 
-    def __init__(self, db: Session):
-        self.db = db
+    async def create(self, upload_id: str, policy: str = "nist_default") -> dict[str, Any]:
+        doc = {
+            "_id": _new_id(),
+            "upload_id": upload_id,
+            "status": "queued",
+            "policy": policy,
+            "created_at": _now(),
+            "started_at": None,
+            "completed_at": None,
+            "progress": 0,
+            "error_code": None,
+            "error_detail": None,
+            # High-level summary fields (filled when completed)
+            "risk_score": None,
+            "posture": None,
+            "finding_counts": None,
+            "analyzer_version": "0.1.0",
+            "capture_stats": None,
+        }
+        await self._col.insert_one(doc)
+        return doc
 
-    def create(self, upload_id: str, policy_id: str = "nist_default", options: dict[str, Any] | None = None) -> AnalysisModel:
-        analysis = AnalysisModel(
-            upload_id=upload_id,
-            policy_id=policy_id,
-            options=options or {},
-            status="queued",
-            stage="queued",
-            progress=0,
+    async def get_by_id(self, analysis_id: str) -> dict[str, Any] | None:
+        return await self._col.find_one({"_id": analysis_id})
+
+    async def list_by_upload(self, upload_id: str) -> list[dict[str, Any]]:
+        cursor = self._col.find({"upload_id": upload_id}).sort("created_at", -1)
+        return await cursor.to_list(length=100)
+
+    async def list_all(
+        self,
+        status: str | None = None,
+        skip: int = 0,
+        limit: int = 20,
+    ) -> list[dict[str, Any]]:
+        query: dict[str, Any] = {}
+        if status:
+            query["status"] = status
+        cursor = self._col.find(query).sort("created_at", -1).skip(skip).limit(limit)
+        return await cursor.to_list(length=limit)
+
+    async def update_status(
+        self,
+        analysis_id: str,
+        status: str,
+        progress: int | None = None,
+        error_code: str | None = None,
+        error_detail: str | None = None,
+    ) -> None:
+        update: dict[str, Any] = {"status": status}
+        if progress is not None:
+            update["progress"] = progress
+        if error_code is not None:
+            update["error_code"] = error_code
+        if error_detail is not None:
+            update["error_detail"] = error_detail
+        if status == "running":
+            update["started_at"] = _now()
+        if status in ("completed", "failed"):
+            update["completed_at"] = _now()
+        await self._col.update_one({"_id": analysis_id}, {"$set": update})
+
+    async def save_result(
+        self,
+        analysis_id: str,
+        risk_score: float,
+        posture: dict[str, Any],
+        finding_counts: dict[str, int],
+        capture_stats: dict[str, Any],
+    ) -> None:
+        await self._col.update_one(
+            {"_id": analysis_id},
+            {
+                "$set": {
+                    "risk_score": risk_score,
+                    "posture": posture,
+                    "finding_counts": finding_counts,
+                    "capture_stats": capture_stats,
+                    "status": "completed",
+                    "completed_at": _now(),
+                    "progress": 100,
+                }
+            },
         )
-        self.db.add(analysis)
-        self.db.commit()
-        self.db.refresh(analysis)
-        return analysis
 
-    def get_by_id(self, analysis_id: str) -> AnalysisModel | None:
-        return self.db.execute(select(AnalysisModel).where(AnalysisModel.id == analysis_id)).scalar_one_or_none()
+    async def delete(self, analysis_id: str) -> bool:
+        result = await self._col.delete_one({"_id": analysis_id})
+        return result.deleted_count > 0
 
-    def list_all(self, limit: int = 50, offset: int = 0) -> list[AnalysisModel]:
-        stmt = select(AnalysisModel).order_by(desc(AnalysisModel.created_at)).offset(offset).limit(limit)
-        return list(self.db.execute(stmt).scalars().all())
-
-    def update_progress(self, analysis_id: str, stage: str, progress: int) -> None:
-        analysis = self.get_by_id(analysis_id)
-        if analysis:
-            analysis.stage = stage
-            analysis.progress = progress
-            self.db.commit()
-
-    def mark_failed(self, analysis_id: str, error_code: str, error_message: str) -> None:
-        analysis = self.get_by_id(analysis_id)
-        if analysis:
-            analysis.status = "failed"
-            analysis.stage = "failed"
-            analysis.error_code = error_code
-            analysis.error_message = error_message
-            self.db.commit()
-
-    def delete(self, analysis: AnalysisModel) -> None:
-        self.db.delete(analysis)
-        self.db.commit()
+    async def count(self, status: str | None = None) -> int:
+        query: dict[str, Any] = {}
+        if status:
+            query["status"] = status
+        return await self._col.count_documents(query)
 
 
-class FindingRepository:
-    """Repository for security findings."""
+# ---------------------------------------------------------------------------
+# Findings repository
+# ---------------------------------------------------------------------------
 
-    def __init__(self, db: Session):
-        self.db = db
+class FindingsRepository:
+    def __init__(self, db: AsyncIOMotorDatabase) -> None:
+        self._col = db[Collections.FINDINGS]
 
-    def list_by_analysis(
+    async def insert_many(
+        self, analysis_id: str, findings: list[dict[str, Any]]
+    ) -> int:
+        if not findings:
+            return 0
+        docs = [{"_id": _new_id(), "analysis_id": analysis_id, **f} for f in findings]
+        result = await self._col.insert_many(docs)
+        return len(result.inserted_ids)
+
+    async def list_by_analysis(
         self,
         analysis_id: str,
         severity: str | None = None,
-        category: str | None = None,
+        skip: int = 0,
         limit: int = 50,
-        offset: int = 0,
-    ) -> list[FindingModel]:
-        stmt = select(FindingModel).where(FindingModel.analysis_id == analysis_id)
+    ) -> list[dict[str, Any]]:
+        query: dict[str, Any] = {"analysis_id": analysis_id}
         if severity:
-            stmt = stmt.where(FindingModel.severity == severity.capitalize())
-        if category:
-            stmt = stmt.where(FindingModel.category == category)
-        stmt = stmt.order_by(desc(FindingModel.risk_score)).offset(offset).limit(limit)
-        return list(self.db.execute(stmt).scalars().all())
-
-    def get_by_id(self, finding_id: str) -> FindingModel | None:
-        return self.db.execute(select(FindingModel).where(FindingModel.id == finding_id)).scalar_one_or_none()
-
-    def add_evidence(
-        self,
-        finding_id: str,
-        packet_no: int,
-        ts: float,
-        message: str,
-        field_path: str,
-        hex_excerpt: str,
-        raw_value: Any = None,
-        decoded: str | None = None,
-        note: str | None = None,
-    ) -> EvidenceModel:
-        ev = EvidenceModel(
-            finding_id=finding_id,
-            packet_no=packet_no,
-            ts=ts,
-            message=message,
-            field_path=field_path,
-            hex_excerpt=hex_excerpt,
-            raw_value=raw_value,
-            decoded=decoded,
-            note=note,
+            query["severity"] = severity
+        cursor = (
+            self._col.find(query)
+            .sort("risk_score", -1)
+            .skip(skip)
+            .limit(limit)
         )
-        self.db.add(ev)
-        self.db.commit()
-        self.db.refresh(ev)
-        return ev
+        return await cursor.to_list(length=limit)
 
+    async def count_by_analysis(
+        self, analysis_id: str, severity: str | None = None
+    ) -> int:
+        query: dict[str, Any] = {"analysis_id": analysis_id}
+        if severity:
+            query["severity"] = severity
+        return await self._col.count_documents(query)
+
+    async def delete_by_analysis(self, analysis_id: str) -> int:
+        result = await self._col.delete_many({"analysis_id": analysis_id})
+        return result.deleted_count
+
+
+# ---------------------------------------------------------------------------
+# IKE Sessions repository
+# ---------------------------------------------------------------------------
 
 class IkeSessionRepository:
-    """Repository for IKE sessions."""
+    def __init__(self, db: AsyncIOMotorDatabase) -> None:
+        self._col = db[Collections.IKE_SESSIONS]
 
-    def __init__(self, db: Session):
-        self.db = db
+    async def insert_many(
+        self, analysis_id: str, sessions: list[dict[str, Any]]
+    ) -> int:
+        if not sessions:
+            return 0
+        docs = [{"_id": _new_id(), "analysis_id": analysis_id, **s} for s in sessions]
+        result = await self._col.insert_many(docs)
+        return len(result.inserted_ids)
 
-    def list_by_analysis(
+    async def list_by_analysis(
         self,
         analysis_id: str,
-        outcome: str | None = None,
-        version: int | None = None,
+        skip: int = 0,
         limit: int = 50,
-        offset: int = 0,
-    ) -> list[IkeSessionModel]:
-        stmt = select(IkeSessionModel).where(IkeSessionModel.analysis_id == analysis_id)
-        if outcome:
-            stmt = stmt.where(IkeSessionModel.outcome == outcome)
-        if version:
-            stmt = stmt.where(IkeSessionModel.version == version)
-        stmt = stmt.offset(offset).limit(limit)
-        return list(self.db.execute(stmt).scalars().all())
-
-    def get_by_id(self, session_id: str) -> IkeSessionModel | None:
-        return self.db.execute(select(IkeSessionModel).where(IkeSessionModel.id == session_id)).scalar_one_or_none()
-
-    def get_messages(self, session_id: str) -> list[IkeMessageModel]:
-        stmt = select(IkeMessageModel).where(IkeMessageModel.session_id == session_id).order_by(IkeMessageModel.packet_no)
-        return list(self.db.execute(stmt).scalars().all())
-
-
-class FlowRepository:
-    """Repository for ESP/AH flows."""
-
-    def __init__(self, db: Session):
-        self.db = db
-
-    def list_by_analysis(self, analysis_id: str, proto: str | None = None, limit: int = 50, offset: int = 0) -> list[IpsecFlowModel]:
-        stmt = select(IpsecFlowModel).where(IpsecFlowModel.analysis_id == analysis_id)
-        if proto:
-            stmt = stmt.where(IpsecFlowModel.proto == proto.lower())
-        stmt = stmt.offset(offset).limit(limit)
-        return list(self.db.execute(stmt).scalars().all())
-
-
-class ReportRepository:
-    """Repository for generated reports."""
-
-    def __init__(self, db: Session):
-        self.db = db
-
-    def create(self, analysis_id: str, format: str, path: str, sha256: str) -> ReportModel:
-        rep = ReportModel(
-            analysis_id=analysis_id,
-            format=format,
-            path=path,
-            sha256=sha256,
+    ) -> list[dict[str, Any]]:
+        cursor = (
+            self._col.find({"analysis_id": analysis_id})
+            .sort("first_ts", 1)
+            .skip(skip)
+            .limit(limit)
         )
-        self.db.add(rep)
-        self.db.commit()
-        self.db.refresh(rep)
-        return rep
+        return await cursor.to_list(length=limit)
 
-    def list_by_analysis(self, analysis_id: str) -> list[ReportModel]:
-        stmt = select(ReportModel).where(ReportModel.analysis_id == analysis_id)
-        return list(self.db.execute(stmt).scalars().all())
+    async def get_by_session_id(
+        self, analysis_id: str, session_id: str
+    ) -> dict[str, Any] | None:
+        return await self._col.find_one(
+            {"analysis_id": analysis_id, "id": session_id}
+        )
+
+    async def delete_by_analysis(self, analysis_id: str) -> int:
+        result = await self._col.delete_many({"analysis_id": analysis_id})
+        return result.deleted_count
+
+
+# ---------------------------------------------------------------------------
+# IPsec Flows repository
+# ---------------------------------------------------------------------------
+
+class IpsecFlowRepository:
+    def __init__(self, db: AsyncIOMotorDatabase) -> None:
+        self._col = db[Collections.IPSEC_FLOWS]
+
+    async def insert_many(
+        self, analysis_id: str, flows: list[dict[str, Any]]
+    ) -> int:
+        if not flows:
+            return 0
+        docs = [{"_id": _new_id(), "analysis_id": analysis_id, **f} for f in flows]
+        result = await self._col.insert_many(docs)
+        return len(result.inserted_ids)
+
+    async def list_by_analysis(
+        self, analysis_id: str, skip: int = 0, limit: int = 50
+    ) -> list[dict[str, Any]]:
+        cursor = (
+            self._col.find({"analysis_id": analysis_id})
+            .sort("packets", -1)
+            .skip(skip)
+            .limit(limit)
+        )
+        return await cursor.to_list(length=limit)
+
+    async def delete_by_analysis(self, analysis_id: str) -> int:
+        result = await self._col.delete_many({"analysis_id": analysis_id})
+        return result.deleted_count
+
+
+# ---------------------------------------------------------------------------
+# Recommendations repository
+# ---------------------------------------------------------------------------
+
+class RecommendationRepository:
+    def __init__(self, db: AsyncIOMotorDatabase) -> None:
+        self._col = db[Collections.RECOMMENDATIONS]
+
+    async def insert_many(
+        self, analysis_id: str, recs: list[dict[str, Any]]
+    ) -> int:
+        if not recs:
+            return 0
+        docs = [{"_id": _new_id(), "analysis_id": analysis_id, **r} for r in recs]
+        result = await self._col.insert_many(docs)
+        return len(result.inserted_ids)
+
+    async def list_by_analysis(
+        self, analysis_id: str
+    ) -> list[dict[str, Any]]:
+        cursor = self._col.find({"analysis_id": analysis_id}).sort("priority", 1)
+        return await cursor.to_list(length=200)
+
+    async def delete_by_analysis(self, analysis_id: str) -> int:
+        result = await self._col.delete_many({"analysis_id": analysis_id})
+        return result.deleted_count
+
+
+# ---------------------------------------------------------------------------
+# Audit log repository
+# ---------------------------------------------------------------------------
+
+class AuditRepository:
+    def __init__(self, db: AsyncIOMotorDatabase) -> None:
+        self._col = db[Collections.AUDIT_LOG]
+
+    async def log(
+        self,
+        event: str,
+        analysis_id: str | None = None,
+        detail: dict[str, Any] | None = None,
+    ) -> None:
+        doc = {
+            "_id": _new_id(),
+            "event": event,
+            "analysis_id": analysis_id,
+            "detail": detail or {},
+            "timestamp": _now(),
+        }
+        await self._col.insert_one(doc)

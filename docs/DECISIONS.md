@@ -24,3 +24,13 @@ This document records all architectural decisions, trade-offs, and disambiguatio
 - **Date:** 2026-10-17
 - **Context:** Workspace initialized on Python 3.14 on Windows.
 - **Decision:** Dependencies pinned in `requirements.txt` with compatibility for Python 3.14+. Virtual environment initialized in `./venv`.
+
+## DEC-005: Database Migration — SQLAlchemy/SQLite → MongoDB Atlas (Motor)
+- **Date:** 2026-10-17
+- **Context:** User requested full MongoDB migration. Project was initially designed with SQLAlchemy + SQLite/PostgreSQL per SRS §10.
+- **Decision:** Replaced SQLAlchemy entirely with **Motor** (async MongoDB driver). All SRS §10 tables are now MongoDB collections in Atlas. Old SQLAlchemy files archived as `*.sqlalchemy_old`. The analyzer core (`analyzer/`) is unaffected — it has no DB dependency.
+- **Collections:** `uploads`, `analyses`, `ike_sessions`, `ike_messages`, `findings`, `ipsec_flows`, `recommendations`, `audit_log`.
+- **Connection:** `MONGODB_URL` env var (Atlas SRV string). `MONGODB_DB_NAME` defaults to `ipsecscope`.
+- **Tests:** API tests mock the MongoDB lifespan with `unittest.mock` — no live Atlas connection required for CI.
+- **Consequences:** No SQL migrations needed; schema is document-oriented. Pydantic models (analyzer layer) are unchanged.
+

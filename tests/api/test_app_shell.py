@@ -1,20 +1,44 @@
-"""API tests for FastAPI app shell, security headers, auth on/off, and error envelopes (TASK-004)."""
+"""API tests for FastAPI app shell, security headers, auth on/off, and error envelopes (TASK-004).
+
+MongoDB lifespan is overridden via a mock so tests don't require a live Atlas connection.
+"""
+
+from __future__ import annotations
 
 import pytest
+from contextlib import asynccontextmanager
+from collections.abc import AsyncGenerator
+from unittest.mock import AsyncMock, MagicMock, patch
+
 from fastapi import APIRouter, Depends
 from fastapi.testclient import TestClient
 
 from backend.app.config import settings
 from backend.app.deps import verify_api_token
-from backend.app.main import create_app
 
+
+# ---------------------------------------------------------------------------
+# Fixture: mock the MongoDB lifespan so tests are self-contained
+# ---------------------------------------------------------------------------
 
 @pytest.fixture
 def client():
-    """TestClient fixture with default settings."""
-    app = create_app()
-    return TestClient(app)
+    """TestClient with MongoDB lifespan mocked out."""
+    # Patch connect_db and close_db before importing create_app
+    with (
+        patch("backend.app.db.mongo.connect_db", new_callable=AsyncMock) as _conn,
+        patch("backend.app.db.mongo.close_db", new_callable=AsyncMock) as _close,
+        patch("backend.app.db.mongo._db", MagicMock()),
+    ):
+        from backend.app.main import create_app
+        app = create_app()
+        with TestClient(app) as c:
+            yield c
 
+
+# ---------------------------------------------------------------------------
+# Tests
+# ---------------------------------------------------------------------------
 
 @pytest.mark.api
 def test_health_endpoint(client):
@@ -59,60 +83,71 @@ def test_404_error_envelope(client):
 @pytest.mark.api
 def test_422_validation_error_envelope():
     """Verify 422 validation errors conform to standard error envelope."""
-    app = create_app()
-    router = APIRouter()
+    with (
+        patch("backend.app.db.mongo.connect_db", new_callable=AsyncMock),
+        patch("backend.app.db.mongo.close_db", new_callable=AsyncMock),
+        patch("backend.app.db.mongo._db", MagicMock()),
+    ):
+        from backend.app.main import create_app
+        app = create_app()
+        router = APIRouter()
 
-    @router.get("/test-validation")
-    def sample_endpoint(limit: int):
-        return {"limit": limit}
+        @router.get("/test-validation")
+        def sample_endpoint(limit: int):
+            return {"limit": limit}
 
-    app.include_router(router)
-    client = TestClient(app)
-
-    response = client.get("/test-validation?limit=not_an_int")
-    assert response.status_code == 422
-    data = response.json()
-    assert "error" in data
-    assert data["error"]["code"] == "VALIDATION_ERROR"
-    assert "errors" in data["error"]["details"]
+        app.include_router(router)
+        with TestClient(app) as client:
+            response = client.get("/test-validation?limit=not_an_int")
+        assert response.status_code == 422
+        data = response.json()
+        assert "error" in data
+        assert data["error"]["code"] == "VALIDATION_ERROR"
+        assert "errors" in data["error"]["details"]
 
 
 @pytest.mark.api
 def test_auth_on_and_off(monkeypatch):
     """Verify authentication dependency behavior when auth is disabled vs enabled."""
-    app = create_app()
-    router = APIRouter()
+    with (
+        patch("backend.app.db.mongo.connect_db", new_callable=AsyncMock),
+        patch("backend.app.db.mongo.close_db", new_callable=AsyncMock),
+        patch("backend.app.db.mongo._db", MagicMock()),
+    ):
+        from backend.app.main import create_app
+        app = create_app()
+        router = APIRouter()
 
-    @router.get("/protected", dependencies=[Depends(verify_api_token)])
-    def protected_route():
-        return {"secret": "accessed"}
+        @router.get("/protected", dependencies=[Depends(verify_api_token)])
+        def protected_route():
+            return {"secret": "accessed"}
 
-    app.include_router(router)
+        app.include_router(router)
 
-    # 1. Auth OFF (API_TOKEN is None/empty)
-    monkeypatch.setattr(settings, "API_TOKEN", None)
-    client = TestClient(app)
-    res_off = client.get("/protected")
-    assert res_off.status_code == 200
-    assert res_off.json() == {"secret": "accessed"}
+        # 1. Auth OFF (API_TOKEN is None/empty)
+        monkeypatch.setattr(settings, "API_TOKEN", None)
+        with TestClient(app) as client:
+            res_off = client.get("/protected")
+        assert res_off.status_code == 200
+        assert res_off.json() == {"secret": "accessed"}
 
-    # 2. Auth ON
-    monkeypatch.setattr(settings, "API_TOKEN", "super_secret_token_123")
+        # 2. Auth ON
+        monkeypatch.setattr(settings, "API_TOKEN", "super_secret_token_123")
 
-    # 2a. Missing token -> 401
-    res_no_auth = client.get("/protected")
-    assert res_no_auth.status_code == 401
-    err_data = res_no_auth.json()
-    assert err_data["error"]["code"] == "UNAUTHORIZED"
+        with TestClient(app) as client:
+            # 2a. Missing token -> 401
+            res_no_auth = client.get("/protected")
+            assert res_no_auth.status_code == 401
+            assert res_no_auth.json()["error"]["code"] == "UNAUTHORIZED"
 
-    # 2b. Invalid token -> 401
-    res_bad_auth = client.get("/protected", headers={"Authorization": "Bearer wrong_token"})
-    assert res_bad_auth.status_code == 401
-    assert res_bad_auth.json()["error"]["code"] == "UNAUTHORIZED"
+            # 2b. Invalid token -> 401
+            res_bad_auth = client.get("/protected", headers={"Authorization": "Bearer wrong_token"})
+            assert res_bad_auth.status_code == 401
+            assert res_bad_auth.json()["error"]["code"] == "UNAUTHORIZED"
 
-    # 2c. Valid token -> 200
-    res_good_auth = client.get(
-        "/protected", headers={"Authorization": "Bearer super_secret_token_123"}
-    )
-    assert res_good_auth.status_code == 200
-    assert res_good_auth.json() == {"secret": "accessed"}
+            # 2c. Valid token -> 200
+            res_good_auth = client.get(
+                "/protected", headers={"Authorization": "Bearer super_secret_token_123"}
+            )
+        assert res_good_auth.status_code == 200
+        assert res_good_auth.json() == {"secret": "accessed"}

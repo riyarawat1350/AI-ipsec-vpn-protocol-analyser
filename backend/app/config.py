@@ -23,7 +23,8 @@ class AppSettings(BaseSettings):
     LOG_LEVEL: str = "INFO"
 
     # Database and file storage
-    DATABASE_URL: str = "sqlite:///./data/ipsecscope.db"
+    MONGODB_URL: str = "mongodb://localhost:27017"
+    MONGODB_DB_NAME: str = "ipsecscope"
     UPLOAD_DIR: str = "./data/uploads"
     REPORT_DIR: str = "./data/reports"
 
@@ -69,10 +70,6 @@ class AppSettings(BaseSettings):
         """Ensure upload and report directories exist."""
         Path(self.UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
         Path(self.REPORT_DIR).mkdir(parents=True, exist_ok=True)
-        # If SQLite, ensure data directory exists
-        if self.DATABASE_URL.startswith("sqlite:///"):
-            db_path = self.DATABASE_URL.replace("sqlite:///", "")
-            Path(db_path).parent.mkdir(parents=True, exist_ok=True)
 
 
 settings = AppSettings()

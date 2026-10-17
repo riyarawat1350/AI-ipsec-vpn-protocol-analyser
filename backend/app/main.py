@@ -11,16 +11,17 @@ from backend.app.config import settings
 from backend.app.core.errors import register_exception_handlers
 from backend.app.core.logging import setup_logging
 from backend.app.core.security import SecurityHeadersMiddleware
-from backend.app.db.base import init_db
+from backend.app.db.mongo import connect_db, close_db
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    """Application lifespan context manager."""
+    """Application lifespan: connect MongoDB on startup, close on shutdown."""
     setup_logging()
     settings.ensure_directories()
-    init_db()
+    await connect_db(settings.MONGODB_URL, settings.MONGODB_DB_NAME)
     yield
+    await close_db()
 
 
 def create_app() -> FastAPI:

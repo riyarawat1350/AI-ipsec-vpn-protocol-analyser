@@ -1,18 +1,16 @@
 """FastAPI dependency injection utilities."""
 
-from collections.abc import Generator
-
 from fastapi import Header
-from sqlalchemy.orm import Session
+from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from backend.app.config import settings
 from backend.app.core.errors import UnauthorizedError
-from backend.app.db.base import get_db as _get_db
+from backend.app.db.mongo import get_db as _get_mongo_db
 
 
-def get_db() -> Generator[Session, None, None]:
-    """Dependency returning database session."""
-    yield from _get_db()
+def get_db() -> AsyncIOMotorDatabase:
+    """Dependency returning the active MongoDB database handle."""
+    return _get_mongo_db()
 
 
 def verify_api_token(authorization: str | None = Header(default=None)) -> None:
