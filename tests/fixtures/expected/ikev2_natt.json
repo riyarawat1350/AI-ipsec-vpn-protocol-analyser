@@ -1,0 +1,10 @@
+{
+  "fixture": "ikev2_natt",
+  "protocol_counts": {
+    "ikev2": 1
+  },
+  "natt": true,
+  "ports": [
+    4500
+  ]
+}

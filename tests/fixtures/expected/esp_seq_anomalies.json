@@ -1,0 +1,11 @@
+{
+  "fixture": "esp_seq_anomalies",
+  "protocol_counts": {
+    "esp": 8
+  },
+  "spi": "12345678",
+  "max_seq": 8,
+  "gaps_count": 1,
+  "duplicates_min": 1,
+  "reorders_min": 1
+}

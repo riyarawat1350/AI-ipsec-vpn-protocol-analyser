@@ -1,0 +1,12 @@
+{
+  "fixture": "ikev2_weak_dh",
+  "protocol_counts": {
+    "ikev2": 1
+  },
+  "weak_dh_groups": [
+    1
+  ],
+  "expected_findings": [
+    "CRY-DH-001"
+  ]
+}

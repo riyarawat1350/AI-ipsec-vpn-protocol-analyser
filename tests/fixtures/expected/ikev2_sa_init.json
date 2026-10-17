@@ -1,0 +1,18 @@
+{
+  "fixture": "ikev2_sa_init",
+  "protocol_counts": {
+    "ikev2": 2
+  },
+  "ike_messages": 2,
+  "version": 2,
+  "exchange_type": 34,
+  "spi_i": "0123456789abcdef",
+  "spi_r_in_response": "fedcba9876543210",
+  "proposals": [
+    {
+      "num": 1,
+      "protocol": "IKE",
+      "transform_count": 5
+    }
+  ]
+}

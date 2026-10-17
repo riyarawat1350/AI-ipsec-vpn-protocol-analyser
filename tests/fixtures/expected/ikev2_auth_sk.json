@@ -1,0 +1,8 @@
+{
+  "fixture": "ikev2_auth_sk",
+  "protocol_counts": {
+    "ikev2": 1
+  },
+  "encrypted": true,
+  "exchange_type": 35
+}

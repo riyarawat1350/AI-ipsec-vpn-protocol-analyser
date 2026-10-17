@@ -1,0 +1,8 @@
+{
+  "fixture": "ikev1_main",
+  "protocol_counts": {
+    "ikev1": 1
+  },
+  "version": 1,
+  "exchange_type": 2
+}

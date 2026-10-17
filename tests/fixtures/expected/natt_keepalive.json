@@ -1,0 +1,6 @@
+{
+  "fixture": "natt_keepalive",
+  "protocol_counts": {
+    "keepalive": 1
+  }
+}

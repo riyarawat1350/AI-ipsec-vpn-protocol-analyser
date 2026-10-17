@@ -1,0 +1,10 @@
+{
+  "fixture": "esp_flow",
+  "protocol_counts": {
+    "esp": 10
+  },
+  "spi": "deadbeef",
+  "packet_count": 10,
+  "max_seq": 10,
+  "gaps": 0
+}

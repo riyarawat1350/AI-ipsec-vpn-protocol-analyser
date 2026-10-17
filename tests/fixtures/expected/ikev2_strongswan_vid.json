@@ -1,0 +1,10 @@
+{
+  "fixture": "ikev2_strongswan_vid",
+  "protocol_counts": {
+    "ikev2": 1
+  },
+  "vendor_ids": [
+    "strongSwan"
+  ],
+  "vid_hex": "882fe56d6fd20dbc2251613b2ebe5beb"
+}

@@ -1,0 +1,8 @@
+{
+  "fixture": "esp_null",
+  "protocol_counts": {
+    "esp": 20
+  },
+  "null_suspected": true,
+  "null_confidence_min": 0.7
+}

@@ -1,0 +1,8 @@
+{
+  "fixture": "mixed_ikev2_esp",
+  "protocol_counts": {
+    "ikev2": 1,
+    "esp": 5
+  },
+  "total_packets": 6
+}
