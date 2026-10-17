@@ -25,6 +25,14 @@ from analyzer.models import (
     IkeTransform,
 )
 from analyzer.ike.common import IKEMessage
+from analyzer.ike.constants import (
+    IKEv1_AUTH,
+    IKEv1_ENCR,
+    IKEv1_HASH,
+    IKEv1_LIFE_TYPE,
+    dh_name,
+    expected_ke_size,
+)
 
 
 def ikemessage_to_model(
@@ -50,23 +58,84 @@ def ikemessage_to_model(
     for prop in msg.proposals:
         transforms_model = []
         for t in prop.transforms:
-            kind_str = getattr(t, "kind", None)
-            if not kind_str:
-                ttype = getattr(t, "transform_type", 1)
-                kind_str = _KIND_MAP.get(ttype, "ENCR")
-            tid = getattr(t, "id", None)
-            if tid is None:
-                tid = getattr(t, "transform_id", 0)
-            tname = getattr(t, "name", "")
-            tkey_len = getattr(t, "key_length", None)
-            transforms_model.append(
-                IkeTransform(
-                    kind=kind_str,  # type: ignore[arg-type]
-                    id=tid,
-                    name=tname,
-                    key_length=tkey_len,
+            raw_attrs = getattr(t, "raw_attrs", [])
+            if raw_attrs and msg.version == 1:
+                # Unpack IKEv1 TV/TLV attributes into discrete transform models
+                key_len = next(
+                    (int(v) for atype, v in raw_attrs if atype == 14 and isinstance(v, (int, str)) and str(v).isdigit()),
+                    None,
                 )
-            )
+                for atype, val in raw_attrs:
+                    if not isinstance(val, int) and (not isinstance(val, str) or not val.isdigit()):
+                        continue
+                    int_val = int(val)
+                    if atype == 1:  # ENCR
+                        transforms_model.append(
+                            IkeTransform(
+                                kind="ENCR",
+                                id=int_val,
+                                name=IKEv1_ENCR.get(int_val, f"UNKNOWN({int_val})"),
+                                key_length=key_len,
+                            )
+                        )
+                    elif atype == 2:  # HASH
+                        transforms_model.append(
+                            IkeTransform(
+                                kind="HASH",
+                                id=int_val,
+                                name=IKEv1_HASH.get(int_val, f"UNKNOWN({int_val})"),
+                            )
+                        )
+                    elif atype == 3:  # AUTH
+                        transforms_model.append(
+                            IkeTransform(
+                                kind="AUTH",
+                                id=int_val,
+                                name=IKEv1_AUTH.get(int_val, f"UNKNOWN({int_val})"),
+                            )
+                        )
+                    elif atype == 4:  # DH group
+                        transforms_model.append(
+                            IkeTransform(
+                                kind="DH",
+                                id=int_val,
+                                name=dh_name(int_val),
+                            )
+                        )
+                    elif atype == 11:  # LIFE_TYPE
+                        transforms_model.append(
+                            IkeTransform(
+                                kind="LIFE_TYPE",
+                                id=int_val,
+                                name=IKEv1_LIFE_TYPE.get(int_val, f"UNKNOWN({int_val})"),
+                            )
+                        )
+                    elif atype == 12:  # LIFE_DURATION
+                        transforms_model.append(
+                            IkeTransform(
+                                kind="LIFE_DURATION",
+                                id=int_val,
+                                name=f"{int_val}s",
+                            )
+                        )
+            else:
+                kind_str = getattr(t, "kind", None)
+                if not kind_str:
+                    ttype = getattr(t, "transform_type", 1)
+                    kind_str = _KIND_MAP.get(ttype, "ENCR")
+                tid = getattr(t, "id", None)
+                if tid is None:
+                    tid = getattr(t, "transform_id", 0)
+                tname = getattr(t, "name", "")
+                tkey_len = getattr(t, "key_length", None)
+                transforms_model.append(
+                    IkeTransform(
+                        kind=kind_str,  # type: ignore[arg-type]
+                        id=tid,
+                        name=tname,
+                        key_length=tkey_len,
+                    )
+                )
 
         proto_val = getattr(prop, "protocol_name", None) or getattr(prop, "protocol", "IKE")
         proto_literal = proto_val if proto_val in ("IKE", "ESP", "AH") else "IKE"
@@ -252,6 +321,20 @@ class IkeSessionReconstructor:
             elif not is_initiator and msg.proposals and session.selected is None:
                 session.selected = msg.proposals[0]
 
+        # Track exchange types, vendor IDs, anomalies, and KE mismatch
+        if msg.exchange_type not in session.exchange_types:
+            session.exchange_types.append(msg.exchange_type)
+        if msg.vendor_ids:
+            session.vendor_ids = list(dict.fromkeys(session.vendor_ids + msg.vendor_ids))
+            session.has_vendor_ids = True
+        if msg.anomalies:
+            session.anomalies = list(dict.fromkeys(session.anomalies + msg.anomalies))
+            session.has_anomalies = True
+        if msg.ke_group is not None and msg.ke_len is not None:
+            exp_sz = expected_ke_size(msg.ke_group)
+            if exp_sz is not None and msg.ke_len != exp_sz:
+                session.ke_mismatch = True
+
         session.messages.append(msg)
         self._update_ikev2_outcome(session)
         return session
@@ -377,6 +460,32 @@ class IkeSessionReconstructor:
                 session.offered = list(msg.proposals)
             elif not is_initiator and msg.proposals and session.selected is None:
                 session.selected = msg.proposals[0]
+
+        # Track exchange types, vendor IDs, anomalies, and KE mismatch
+        if msg.exchange_type not in session.exchange_types:
+            session.exchange_types.append(msg.exchange_type)
+        if msg.vendor_ids:
+            session.vendor_ids = list(dict.fromkeys(session.vendor_ids + msg.vendor_ids))
+            session.has_vendor_ids = True
+        if msg.anomalies:
+            session.anomalies = list(dict.fromkeys(session.anomalies + msg.anomalies))
+            session.has_anomalies = True
+        if msg.ke_group is not None and msg.ke_len is not None:
+            exp_sz = expected_ke_size(msg.ke_group)
+            if exp_sz is not None and msg.ke_len != exp_sz:
+                session.ke_mismatch = True
+        if msg.v1_hash_len or (8 in msg.payload_types and not msg.encrypted):
+            session.has_cleartext_hash = True
+
+        # Check PSK in offered or selected
+        props_to_check = list(session.offered)
+        if session.selected:
+            props_to_check.append(session.selected)
+        for p in props_to_check:
+            for t in p.transforms:
+                if t.kind == "AUTH" and t.id == 1:
+                    session.has_psk = True
+                    break
 
         session.messages.append(msg)
         self._update_ikev1_outcome(session)

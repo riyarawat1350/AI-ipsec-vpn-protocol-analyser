@@ -116,6 +116,14 @@ class IkeSession(BaseModel):
     ke_retries: int = 0
     aggressive_mode: bool = False
     encrypted_not_observable: list[str] = Field(default_factory=list)
+    exchange_types: list[int] = Field(default_factory=list)
+    vendor_ids: list[str] = Field(default_factory=list)
+    anomalies: list[str] = Field(default_factory=list)
+    has_anomalies: bool = False
+    has_vendor_ids: bool = False
+    has_psk: bool = False
+    has_cleartext_hash: bool = False
+    ke_mismatch: bool = False
 
 
 class Observation(BaseModel):

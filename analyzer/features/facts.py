@@ -124,6 +124,7 @@ def build_facts(
     protocol_stats: dict[str, Any] | None = None,
     sessions: list[IkeSession] | None = None,
     flows: list[IpsecFlow] | None = None,
+    observations: list[Observation] | None = None,
     warnings: list[str] | None = None,
     unsupported: list[str] | None = None,
     windows: list[dict[str, Any]] | None = None,
@@ -142,7 +143,7 @@ def build_facts(
 
     sess_list = list(sessions or [])
     flow_list = list(flows or [])
-    obs_list = build_observations_from_sessions(sess_list)
+    obs_list = list(observations) if observations is not None else build_observations_from_sessions(sess_list)
 
     unsupported_defaults = [
         "Encrypted IKE_AUTH payloads are not decrypted (passive analysis)",

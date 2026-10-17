@@ -23,6 +23,7 @@ class AppSettings(BaseSettings):
     LOG_LEVEL: str = "INFO"
 
     # Database and file storage
+    DATABASE_URL: str = "sqlite:///./data/ipsecscope.db"
     MONGODB_URL: str = "mongodb://localhost:27017"
     MONGODB_DB_NAME: str = "ipsecscope"
     UPLOAD_DIR: str = "./data/uploads"

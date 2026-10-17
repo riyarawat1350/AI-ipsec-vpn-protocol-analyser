@@ -156,3 +156,208 @@ rules:
     references: ["RFC 7296 §3.3.2", "RFC 8247 §2.2"]
     recommendation_id: "REC-CRY-INT-002"
     params: {}
+
+  # ── IKE-V1-001: Deprecated IKEv1 protocol in use ────────────────────────────
+  - id: "IKE-V1-001"
+    target: "session"
+    category: "Protocol"
+    title: "Deprecated IKEv1 protocol in use"
+    explanation: "IKEv1 is deprecated (RFC 9395) due to architectural vulnerabilities and lack of modern cryptographic agility."
+    why_this_matters: "IKEv1 lacks protection against quantum attacks, has weaker identity protection, and does not support modern authenticated ciphers."
+    condition:
+      all:
+        - field: "version"
+          op: "eq"
+          value: 1
+    impact: 2
+    likelihood: 5
+    confidence: 1.0
+    group_by: ["id"]
+    references: ["RFC 9395", "NIST SP 800-77 Rev. 1"]
+    recommendation_id: "REC-IKEV2"
+    params: {}
+
+  # ── IKE-V1-002: Aggressive Mode used ────────────────────────────────────────
+  - id: "IKE-V1-002"
+    target: "session"
+    category: "Protocol"
+    title: "IKEv1 Aggressive Mode in use"
+    explanation: "IKEv1 Aggressive Mode exchange transmits identities without identity protection."
+    why_this_matters: "An eavesdropper can passively capture peer identities and target them for offline authentication attacks."
+    condition:
+      all:
+        - field: "version"
+          op: "eq"
+          value: 1
+        - field: "aggressive_mode"
+          op: "eq"
+          value: true
+    impact: 3
+    likelihood: 5
+    confidence: 1.0
+    group_by: ["id"]
+    references: ["RFC 2409 §5.4", "NIST SP 800-77 Rev. 1 §4.1"]
+    recommendation_id: "REC-NO-AGGR"
+    params: {}
+
+  # ── IKE-V1-003: Aggressive Mode with PSK exposes hash ───────────────────────
+  - id: "IKE-V1-003"
+    target: "session"
+    category: "Protocol"
+    title: "IKEv1 Aggressive Mode with PSK exposes authentication hash"
+    explanation: "Aggressive Mode transmits the peer identity and a hash derived from the pre-shared key unencrypted in the cleartext reply."
+    why_this_matters: "An adversary capturing this traffic can perform an offline dictionary or brute-force attack to recover the pre-shared key."
+    condition:
+      all:
+        - field: "version"
+          op: "eq"
+          value: 1
+        - field: "aggressive_mode"
+          op: "eq"
+          value: true
+        - field: "has_psk"
+          op: "eq"
+          value: true
+        - field: "has_cleartext_hash"
+          op: "eq"
+          value: true
+    impact: 4
+    likelihood: 5
+    confidence: 1.0
+    group_by: ["id"]
+    references: ["RFC 2409", "NIST SP 800-77 Rev. 1"]
+    mitre: ["T1110.002"]
+    recommendation_id: "REC-NO-AGGR"
+    params: {}
+
+  # ── IKE-V1-004: Excessive IKEv1 SA lifetime ─────────────────────────────────
+  - id: "IKE-V1-004"
+    target: "observation"
+    category: "Configuration"
+    title: "Excessive IKEv1 SA lifetime ({id}s)"
+    explanation: "Configured SA lifetime of {id} seconds exceeds the recommended maximum of 86400s (24 hours)."
+    why_this_matters: "Long lifetimes increase the window of vulnerability if session keys are compromised."
+    condition:
+      all:
+        - field: "kind"
+          op: "eq"
+          value: "lifetime"
+        - field: "id"
+          op: "gt"
+          value: 86400
+    impact: 2
+    likelihood: 5
+    confidence: 1.0
+    group_by: ["session_id", "kind"]
+    references: ["NIST SP 800-77 Rev. 1"]
+    recommendation_id: "REC-LIFETIME"
+    params:
+      max_lifetime_seconds: 86400
+
+  # ── IKE-V1-005: IKEv1 PSK authentication in use ─────────────────────────────
+  - id: "IKE-V1-005"
+    target: "observation"
+    category: "Authentication"
+    title: "IKEv1 pre-shared key (PSK) authentication in use"
+    explanation: "IKEv1 session uses pre-shared keys for authentication. Pre-shared keys are prone to weak passphrases and reuse."
+    why_this_matters: "PSK authentication is vulnerable to brute-force attacks and management scaling weaknesses."
+    condition:
+      all:
+        - field: "kind"
+          op: "eq"
+          value: "auth_method"
+        - field: "id"
+          op: "eq"
+          value: 1
+        - field: "role"
+          op: "eq"
+          value: "selected"
+    impact: 1
+    likelihood: 5
+    confidence: 1.0
+    group_by: ["session_id", "kind", "id"]
+    references: ["NIST SP 800-77 Rev. 1 §4.1"]
+    recommendation_id: "REC-CERT-AUTH"
+    params: {}
+
+  # ── IKE-PROTO-001: Malformed IKE messages ───────────────────────────────────
+  - id: "IKE-PROTO-001"
+    target: "session"
+    category: "Protocol"
+    title: "Malformed IKE messages or protocol anomalies detected"
+    explanation: "Parser encountered malformed packets, length inconsistencies, or unexpected payload structures in IKE session."
+    why_this_matters: "Malformed messages can indicate fuzzing, protocol downgrade attacks, or implementation bugs."
+    condition:
+      all:
+        - field: "has_anomalies"
+          op: "eq"
+          value: true
+    impact: 2
+    likelihood: 3
+    confidence: 0.9
+    group_by: ["id"]
+    references: ["RFC 7296", "RFC 2409"]
+    recommendation_id: "REC-INVESTIGATE-PEER"
+    params: {}
+
+  # ── IKE-PROTO-002: Key Exchange length mismatch ─────────────────────────────
+  - id: "IKE-PROTO-002"
+    target: "session"
+    category: "Protocol"
+    title: "Key Exchange (KE) payload length inconsistent with DH group"
+    explanation: "The observed Key Exchange payload length does not match the expected length defined for the negotiated DH group."
+    why_this_matters: "KE length discrepancies may indicate invalid public keys, potential small-subgroup attacks, or parser exploitation."
+    condition:
+      all:
+        - field: "ke_mismatch"
+          op: "eq"
+          value: true
+    impact: 3
+    likelihood: 4
+    confidence: 0.9
+    group_by: ["id"]
+    references: ["RFC 7296 §3.4", "RFC 8247"]
+    recommendation_id: "REC-INVESTIGATE-PEER"
+    params: {}
+
+  # ── IKE-INFO-001: Peer implementation fingerprint ───────────────────────────
+  - id: "IKE-INFO-001"
+    target: "session"
+    category: "Information"
+    title: "Peer implementation fingerprint identified"
+    explanation: "Vendor ID payloads observed in IKE negotiation indicate peer software implementation."
+    why_this_matters: "Informational finding for asset inventory and patch hygiene tracking."
+    condition:
+      all:
+        - field: "has_vendor_ids"
+          op: "eq"
+          value: true
+    impact: 1
+    likelihood: 5
+    confidence: 0.8
+    override_severity: "Info"
+    group_by: ["id"]
+    references: ["RFC 7296 §3.12", "RFC 2408 §3.13"]
+    recommendation_id: "REC-PATCH-HYGIENE"
+    params: {}
+
+  # ── IKE-INFO-002: NAT-Traversal in use ──────────────────────────────────────
+  - id: "IKE-INFO-002"
+    target: "session"
+    category: "Information"
+    title: "NAT-Traversal (NAT-T) active on UDP 4500"
+    explanation: "IKE and/or ESP encapsulation over UDP port 4500 detected, indicating NAT in the path."
+    why_this_matters: "Informational finding confirming NAT-T traversal operational status."
+    condition:
+      all:
+        - field: "natt"
+          op: "eq"
+          value: true
+    impact: 1
+    likelihood: 5
+    confidence: 0.9
+    override_severity: "Info"
+    group_by: ["id"]
+    references: ["RFC 3947", "RFC 3948"]
+    params: {}
+

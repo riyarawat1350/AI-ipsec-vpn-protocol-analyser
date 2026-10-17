@@ -107,10 +107,12 @@ def _observation_to_evidence(obs: dict[str, Any]) -> Evidence:
 
 
 def _session_to_evidence(sess: dict[str, Any]) -> Evidence:
+    msgs = sess.get("messages", [])
+    first_pkt = msgs[0].get("pkt_no", 1) if msgs else 1
     return Evidence(
-        packet_no=1,
+        packet_no=first_pkt,
         ts=sess.get("first_ts", 0.0),
-        message=f"IKE Session {sess.get('id')} outcome: {sess.get('outcome')}",
+        message=f"IKEv{sess.get('version')} Session {sess.get('id')} outcome: {sess.get('outcome')}",
         field_path="session.outcome",
         raw_value=sess.get("outcome"),
         decoded=sess.get("id"),
@@ -164,6 +166,11 @@ class RuleEngine:
                     likelihood = resolve_likelihood(rule.likelihood, item)
 
                     fmt_dict = SafeDict(item)
+                    if "initiator" in item and isinstance(item["initiator"], dict):
+                        fmt_dict["initiator_ip"] = item["initiator"].get("ip", "")
+                    if "responder" in item and isinstance(item["responder"], dict):
+                        fmt_dict["responder_ip"] = item["responder"].get("ip", "")
+
                     title = rule.title.format_map(fmt_dict)
                     explanation = rule.explanation.format_map(fmt_dict)
 
