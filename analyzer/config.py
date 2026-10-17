@@ -47,5 +47,18 @@ class AnalyzerConfig:
     # Custom options
     custom_options: dict[str, Any] = field(default_factory=dict)
 
+    @property
+    def max_capture_bytes(self) -> int:
+        """Max file size in bytes."""
+        return self.max_file_size_mb * 1024 * 1024
+
+    @property
+    def defrag_max_cache_bytes(self) -> int:
+        return self.max_defrag_memory_bytes
+
+    @property
+    def defrag_timeout_s(self) -> float:
+        return self.defrag_timeout_seconds
+
 
 DEFAULT_ANALYZER_CONFIG = AnalyzerConfig()
