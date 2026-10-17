@@ -1,0 +1,43 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# Unit test / coverage
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Uploads and temporary data
+data/
+uploads/
+*.pcap
+*.pcapng
+!tests/fixtures/pcaps/*.pcap
+!tests/fixtures/pcaps/*.pcapng
+
+# Node
+node_modules/
+frontend/dist/
+frontend/node_modules/
+.npm
+
+# IDEs
+.idea/
+.vscode/
+*.swp
