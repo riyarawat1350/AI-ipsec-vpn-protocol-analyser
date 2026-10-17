@@ -1,20 +1,31 @@
-"""Capture-level statistics and Facts builder stubs (FR-42, FR-49).
+"""Capture-level statistics and complete Facts builder (FR-42, FR-49) — TASK-022.
 
-TASK-010: populate `capture` and `protocol_stats` sections of Facts.
-Full facts builder (sessions, observations, flows) is TASK-022.
+Extracts Facts container from classifier results, reconstructed IKE sessions,
+and tracked IPsec flows. Flattens session cryptographic proposals into
+discrete Observation models for the declarative rules engine.
 """
 
 from __future__ import annotations
 
+from typing import Any, Literal
 from analyzer.classify.classifier import ClassifierResult, PortStats, TalkerStats
-from analyzer.models import Facts
+from analyzer.models import Facts, IkeSession, IpsecFlow, Observation
+
+# Mapping from transform kind uppercase to Observation kind lowercase
+_KIND_MAP: dict[str, Literal["encr", "prf", "integ", "dh", "hash", "auth_method", "lifetime"]] = {
+    "ENCR": "encr",
+    "PRF": "prf",
+    "INTEG": "integ",
+    "DH": "dh",
+    "HASH": "hash",
+    "AUTH": "auth_method",
+    "LIFE_TYPE": "lifetime",
+    "LIFE_DURATION": "lifetime",
+}
 
 
-def build_capture_stats(result: ClassifierResult) -> dict:
-    """Convert a :class:`ClassifierResult` into the `capture` dict for Facts.
-
-    Keys mirror SRS §10 and the expected JSON schema from Document 5 §3.
-    """
+def build_capture_stats(result: ClassifierResult) -> dict[str, Any]:
+    """Convert a :class:`ClassifierResult` into the `capture` dict for Facts."""
     duration = result.duration_seconds()
     return {
         "total_packets": result.total_packets,
@@ -27,15 +38,8 @@ def build_capture_stats(result: ClassifierResult) -> dict:
     }
 
 
-def build_protocol_stats(result: ClassifierResult, top_n: int = 10) -> dict:
-    """Convert a :class:`ClassifierResult` into the `protocol_stats` dict for Facts.
-
-    Keys:
-        counts           – raw per-bucket packet counts
-        distribution     – per-bucket fraction of total
-        top_talkers      – top-n source IPs by packet count
-        top_ports        – top-n ports by packet count
-    """
+def build_protocol_stats(result: ClassifierResult, top_n: int = 10) -> dict[str, Any]:
+    """Convert a :class:`ClassifierResult` into the `protocol_stats` dict for Facts."""
     top_talkers_raw: list[TalkerStats] = result.top_talkers(top_n)
     top_ports_raw: list[PortStats] = result.top_ports(top_n)
 
@@ -53,19 +57,112 @@ def build_protocol_stats(result: ClassifierResult, top_n: int = 10) -> dict:
     }
 
 
-def build_facts_from_classifier(result: ClassifierResult) -> Facts:
-    """Construct a :class:`~analyzer.models.Facts` object from classifier results.
+def build_observations_from_sessions(sessions: list[IkeSession]) -> list[Observation]:
+    """Flatten cryptographic proposals from IKE sessions into Observation models.
 
-    Sessions, observations, and flows are populated to empty lists; they will
-    be filled in by TASK-022 (full facts builder).
+    Adheres to SPEC §4 & §5.10. Each transform inside an offered or selected
+    proposal produces one Observation.
     """
+    observations: list[Observation] = []
+
+    for session in sessions:
+        # Find packet number for initiator message
+        init_msg = next((m for m in session.messages if m.direction == "i2r" and m.proposals), None)
+        init_pkt_no = init_msg.pkt_no if init_msg else 1
+
+        # 1. Flatten offered proposals
+        for p_idx, prop in enumerate(session.offered):
+            for t_idx, t in enumerate(prop.transforms):
+                kind_val = _KIND_MAP.get(t.kind)
+                if not kind_val:
+                    continue
+                observations.append(
+                    Observation(
+                        session_id=session.id,
+                        kind=kind_val,
+                        id=t.id,
+                        name=t.name,
+                        key_length=t.key_length,
+                        role="offered",
+                        pkt_no=init_pkt_no,
+                        field_path=f"session.offered[{p_idx}].transforms[{t_idx}]",
+                        raw_hex=f"{t.id:04x}",
+                        ike_version=session.version,
+                    )
+                )
+
+        # 2. Flatten selected proposal if present
+        if session.selected:
+            resp_msg = next((m for m in session.messages if m.direction == "r2i" and m.proposals), None)
+            resp_pkt_no = resp_msg.pkt_no if resp_msg else 2
+
+            for t_idx, t in enumerate(session.selected.transforms):
+                kind_val = _KIND_MAP.get(t.kind)
+                if not kind_val:
+                    continue
+                observations.append(
+                    Observation(
+                        session_id=session.id,
+                        kind=kind_val,
+                        id=t.id,
+                        name=t.name,
+                        key_length=t.key_length,
+                        role="selected",
+                        pkt_no=resp_pkt_no,
+                        field_path=f"session.selected.transforms[{t_idx}]",
+                        raw_hex=f"{t.id:04x}",
+                        ike_version=session.version,
+                    )
+                )
+
+    return observations
+
+
+def build_facts(
+    classifier_result: ClassifierResult | None = None,
+    capture_meta: dict[str, Any] | None = None,
+    protocol_stats: dict[str, Any] | None = None,
+    sessions: list[IkeSession] | None = None,
+    flows: list[IpsecFlow] | None = None,
+    warnings: list[str] | None = None,
+    unsupported: list[str] | None = None,
+    windows: list[dict[str, Any]] | None = None,
+) -> Facts:
+    """Build a complete Facts instance."""
+    cap_dict = capture_meta or {}
+    proto_dict = protocol_stats or {}
+    warn_list = list(warnings or [])
+
+    if classifier_result is not None:
+        if not cap_dict:
+            cap_dict = build_capture_stats(classifier_result)
+        if not proto_dict:
+            proto_dict = build_protocol_stats(classifier_result)
+        warn_list.extend(classifier_result.warnings)
+
+    sess_list = list(sessions or [])
+    flow_list = list(flows or [])
+    obs_list = build_observations_from_sessions(sess_list)
+
+    unsupported_defaults = [
+        "Encrypted IKE_AUTH payloads are not decrypted (passive analysis)",
+        "ESP/AH payload encryption algorithms cannot be inspected without keys",
+        "IPv6 ESP-NULL heuristic is not supported",
+    ]
+    unsupp_list = list(unsupported or unsupported_defaults)
+
     return Facts(
-        capture=build_capture_stats(result),
-        protocol_stats=build_protocol_stats(result),
-        sessions=[],
-        observations=[],
-        flows=[],
-        windows=[],
-        unsupported=[],
-        warnings=list(result.warnings),
+        capture=cap_dict,
+        protocol_stats=proto_dict,
+        sessions=sess_list,
+        observations=obs_list,
+        flows=flow_list,
+        windows=list(windows or []),
+        unsupported=unsupp_list,
+        warnings=warn_list,
     )
+
+
+def build_facts_from_classifier(result: ClassifierResult) -> Facts:
+    """Construct Facts from classifier results with empty sessions and flows."""
+    return build_facts(classifier_result=result)
