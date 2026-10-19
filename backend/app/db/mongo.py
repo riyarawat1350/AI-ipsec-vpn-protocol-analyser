@@ -20,6 +20,14 @@ _client: AsyncIOMotorClient | None = None
 _db: AsyncIOMotorDatabase | None = None
 
 
+import re
+
+
+def mask_mongo_url(url: str) -> str:
+    """Mask credentials in MongoDB connection string: mongodb+srv://user:pass@host -> mongodb+srv://user:***@host."""
+    return re.sub(r"://([^:@]+):([^@]+)@", r"://\1:***@", url)
+
+
 async def connect_db(mongo_url: str, db_name: str = "ipsecscope") -> AsyncIOMotorDatabase:
     """Open the Motor connection pool and ensure indexes exist."""
     global _client, _db
@@ -28,7 +36,7 @@ async def connect_db(mongo_url: str, db_name: str = "ipsecscope") -> AsyncIOMoto
     _db = _client[db_name]
 
     await _ensure_indexes(_db)
-    logger.info("MongoDB connected: %s / %s", mongo_url.split("@")[-1], db_name)
+    logger.info("MongoDB connected: %s / %s", mask_mongo_url(mongo_url), db_name)
     return _db
 
 

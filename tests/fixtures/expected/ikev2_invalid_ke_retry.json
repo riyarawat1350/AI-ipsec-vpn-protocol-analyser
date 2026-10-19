@@ -1,0 +1,18 @@
+{
+  "fixture": "F08",
+  "ke_retries": 1,
+  "expected_findings": [
+    {
+      "rule_id": "CRY-DH-001",
+      "risk_score": 48.0,
+      "severity": "Medium"
+    }
+  ],
+  "expected_posture": {
+    "score": 71.0,
+    "grade": "C"
+  },
+  "protocol_counts": {
+    "ikev2": 4
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "fixture": "F23",
+  "file": "pcapng_two_interfaces.pcapng",
+  "interface_count": 2,
+  "expected_protocols": [
+    "ikev2"
+  ],
+  "expected_packet_count": 2
+}

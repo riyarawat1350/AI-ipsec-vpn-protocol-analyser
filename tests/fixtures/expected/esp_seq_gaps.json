@@ -1,0 +1,21 @@
+{
+  "fixture": "F12",
+  "file": "esp_seq_gaps.pcap",
+  "expected_findings": [
+    {
+      "rule_id": "ESP-SEQ-001",
+      "risk_score": 18.0,
+      "severity": "Low"
+    },
+    {
+      "rule_id": "ESP-NOIKE-001",
+      "risk_score": 9.0,
+      "severity": "Info"
+    }
+  ],
+  "spi": "12345678",
+  "total_packets": 986,
+  "gaps_count": 3,
+  "duplicates": 2,
+  "reorders": 1
+}

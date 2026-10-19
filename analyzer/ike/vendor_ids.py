@@ -72,16 +72,60 @@ def lookup_vendor_id(vid_bytes: bytes | str) -> VendorMatch | None:
     if hex_key in _KNOWN_VIDS:
         return _KNOWN_VIDS[hex_key]
 
-    # 2. ASCII string prefix match (e.g. strongSwan sends "strongSwan ...")
+    # 2. General ASCII check (e.g. Cisco delete reason or implementation strings)
     try:
         ascii_text = raw_b.decode("ascii", errors="strict")
-        if ascii_text.startswith("strongSwan"):
-            return VendorMatch(f"strongSwan ({ascii_text})", "Implementation")
-        if ascii_text.startswith("OpenS嚮"):
-            return VendorMatch("Openswan", "Implementation")
-        if ascii_text.startswith("Libreswan"):
-            return VendorMatch(f"Libreswan ({ascii_text})", "Implementation")
+        if all(32 <= ord(c) <= 126 for c in ascii_text) and len(ascii_text) >= 3:
+            if ascii_text.startswith("strongSwan"):
+                return VendorMatch(f"strongSwan ({ascii_text})", "Implementation")
+            if ascii_text.startswith("OpenS"):
+                return VendorMatch("Openswan", "Implementation")
+            if ascii_text.startswith("Libreswan"):
+                return VendorMatch(f"Libreswan ({ascii_text})", "Implementation")
+            return VendorMatch(ascii_text, "ASCII String")
     except UnicodeDecodeError:
         pass
 
     return None
+
+
+def decode_vendor_id(vid_bytes: bytes | str) -> dict[str, Any]:
+    """Decode a Vendor ID for UI and report presentation.
+
+    - Resolves known hashes (e.g. IKE Fragmentation RFC 7383).
+    - Decodes printable ASCII bytes (e.g. CISCO-DELETE-REASON).
+    - Keeps raw hex distinct.
+    - Always attaches 'peer-reported (may be spoofed)' label.
+    """
+    if isinstance(vid_bytes, str):
+        hex_key = vid_bytes.lower().strip()
+        try:
+            raw_b = bytes.fromhex(hex_key)
+        except ValueError:
+            raw_b = hex_key.encode("ascii", errors="ignore")
+    else:
+        hex_key = vid_bytes.hex().lower()
+        raw_b = vid_bytes
+
+    match = lookup_vendor_id(vid_bytes)
+    ascii_decoded: str | None = None
+    try:
+        decoded = raw_b.decode("ascii", errors="strict")
+        if all(32 <= ord(c) <= 126 for c in decoded) and len(decoded) >= 2:
+            ascii_decoded = decoded
+    except UnicodeDecodeError:
+        pass
+
+    display_name = match.name if match else (ascii_decoded or hex_key)
+
+    return {
+        "raw_hex": hex_key,
+        "name": match.name if match else None,
+        "ascii_decoded": ascii_decoded,
+        "display": display_name,
+        "category": match.category if match else ("ASCII String" if ascii_decoded else "Unknown Hash"),
+        "is_known": bool(match),
+        "is_ascii": bool(ascii_decoded),
+        "label": "peer-reported (may be spoofed)",
+    }
+

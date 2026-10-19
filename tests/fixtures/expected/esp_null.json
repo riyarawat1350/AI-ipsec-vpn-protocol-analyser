@@ -1,8 +1,20 @@
 {
-  "fixture": "esp_null",
-  "protocol_counts": {
-    "esp": 20
-  },
+  "fixture": "F13",
+  "file": "esp_null.pcap",
+  "expected_findings": [
+    {
+      "rule_id": "ESP-NULL-001",
+      "risk_score": 92.5,
+      "severity": "Critical"
+    },
+    {
+      "rule_id": "ESP-NOIKE-001",
+      "risk_score": 9.0,
+      "severity": "Info"
+    }
+  ],
+  "spi": "cafebabe",
   "null_suspected": true,
-  "null_confidence_min": 0.7
+  "null_confidence_min": 0.9,
+  "packet_count": 25
 }

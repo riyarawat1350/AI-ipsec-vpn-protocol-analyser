@@ -25,6 +25,12 @@ export const CapabilityBadge: React.FC<Props> = ({ status }) => {
           Not Implemented
         </span>
       );
+    case 'not_configured':
+      return (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-800 text-amber-400 border border-amber-800/60">
+          Not Configured
+        </span>
+      );
     default:
       return null;
   }

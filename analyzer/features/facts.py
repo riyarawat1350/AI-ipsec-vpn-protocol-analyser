@@ -41,6 +41,7 @@ def build_capture_stats(result: ClassifierResult) -> dict[str, Any]:
 def build_protocol_stats(result: ClassifierResult, top_n: int = 10) -> dict[str, Any]:
     """Convert a :class:`ClassifierResult` into the `protocol_stats` dict for Facts."""
     top_talkers_raw: list[TalkerStats] = result.top_talkers(top_n)
+    top_conversations_raw: list[ConversationStats] = result.top_conversations(top_n) if hasattr(result, "top_conversations") else []
     top_ports_raw: list[PortStats] = result.top_ports(top_n)
 
     return {
@@ -49,6 +50,15 @@ def build_protocol_stats(result: ClassifierResult, top_n: int = 10) -> dict[str,
         "top_talkers": [
             {"ip": t.ip, "packets": t.packets, "bytes": t.bytes}
             for t in top_talkers_raw
+        ],
+        "conversations": [
+            {
+                "endpoint_a": c.endpoint_a,
+                "endpoint_b": c.endpoint_b,
+                "packets": c.packets,
+                "bytes": c.bytes,
+            }
+            for c in top_conversations_raw
         ],
         "top_ports": [
             {"port": p.port, "proto": p.proto, "packets": p.packets}

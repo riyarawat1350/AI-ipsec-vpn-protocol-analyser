@@ -38,7 +38,7 @@ def detect_ike_floods(
                     n.type == 16390 or "COOKIE" in n.name.upper()
                     for n in msg.notifies
                 )
-                has_ke = msg.ke_len is not None or msg.ke_group is not None
+                has_ke = msg.ke_len is not None or msg.ke_group is not None or len(msg.proposals) > 0
                 responder_replies[session.responder.ip].append({
                     "ts": msg.ts,
                     "pkt_no": msg.pkt_no,

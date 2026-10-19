@@ -1,0 +1,35 @@
+{
+  "fixture": "F02",
+  "file": "ikev2_modp1024_3des.pcap",
+  "expected_findings": [
+    {
+      "rule_id": "CRY-DH-001",
+      "risk_score": 80.0,
+      "severity": "High"
+    },
+    {
+      "rule_id": "CRY-ENC-001",
+      "risk_score": 60.0,
+      "severity": "Medium"
+    },
+    {
+      "rule_id": "CRY-INT-001",
+      "risk_score": 20.0,
+      "severity": "Low"
+    },
+    {
+      "rule_id": "CRY-INT-001",
+      "risk_score": 20.0,
+      "severity": "Low"
+    }
+  ],
+  "expected_posture": {
+    "score": 25.8,
+    "grade": "F"
+  },
+  "protocol_counts": {
+    "ikev2": 2
+  },
+  "dh_group": 2,
+  "encryption": "3DES"
+}

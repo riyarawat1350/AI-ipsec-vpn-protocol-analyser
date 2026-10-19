@@ -1,0 +1,8 @@
+{
+  "fixture": "F24",
+  "file": "sll_linktype.pcap",
+  "link_type": 113,
+  "expected_protocols": [
+    "ikev2"
+  ]
+}

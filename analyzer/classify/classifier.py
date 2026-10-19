@@ -57,6 +57,16 @@ class TalkerStats:
 
 
 @dataclass
+class ConversationStats:
+    """Pairwise IP conversation statistics."""
+
+    endpoint_a: str
+    endpoint_b: str
+    packets: int = 0
+    bytes: int = 0
+
+
+@dataclass
 class PortStats:
     """Per-port statistics."""
 
@@ -78,6 +88,9 @@ class ClassifierResult:
 
     # Top talker tracking — maintained as dicts keyed by IP
     talkers: dict[str, TalkerStats] = field(default_factory=dict)
+
+    # Conversation pairs — maintained as dicts keyed by (ip_a, ip_b)
+    conversations: dict[tuple[str, str], ConversationStats] = field(default_factory=dict)
 
     # Port histogram — keyed by (port, proto_str)
     port_stats: dict[tuple[int, str], PortStats] = field(default_factory=dict)
@@ -104,6 +117,11 @@ class ClassifierResult:
     def top_talkers(self, n: int = 10) -> list[TalkerStats]:
         """Return top-n talkers by packet count."""
         return sorted(self.talkers.values(), key=lambda t: t.packets, reverse=True)[:n]
+
+    def top_conversations(self, n: int = 10) -> list[ConversationStats]:
+        """Return top-n conversation pairs by packet count."""
+        return sorted(self.conversations.values(), key=lambda c: c.packets, reverse=True)[:n]
+
 
     def top_ports(self, n: int = 10) -> list[PortStats]:
         """Return top-n ports by packet count."""
@@ -149,8 +167,9 @@ class ProtocolClassifier:
         if r.last_ts is None or pkt.ts > r.last_ts:
             r.last_ts = pkt.ts
 
-        # Source talker
+        # Source talker & conversation pair
         self._update_talker(pkt.src, payload_len)
+        self._update_conversation(pkt.src, pkt.dst, payload_len)
 
         # Port stats
         proto_label = self._ip_proto_label(pkt.ip_proto)
@@ -262,6 +281,17 @@ class ProtocolClassifier:
             r.talkers[ip] = TalkerStats(ip=ip)
         r.talkers[ip].packets += 1
         r.talkers[ip].bytes += pkt_bytes
+
+    def _update_conversation(self, src: str, dst: str, pkt_bytes: int) -> None:
+        if not src or not dst:
+            return
+        pair = (src, dst) if src <= dst else (dst, src)
+        r = self._result
+        if pair not in r.conversations:
+            r.conversations[pair] = ConversationStats(endpoint_a=pair[0], endpoint_b=pair[1])
+        r.conversations[pair].packets += 1
+        r.conversations[pair].bytes += pkt_bytes
+
 
     def _update_port(self, port: int, proto_label: str) -> None:
         key = (port, proto_label)

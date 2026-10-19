@@ -1,0 +1,14 @@
+{
+  "fixture": "F09",
+  "expected_findings": [
+    {
+      "rule_id": "IKE-NEG-001",
+      "risk_score": 30.4,
+      "severity": "Low"
+    }
+  ],
+  "failed_negotiations": 5,
+  "protocol_counts": {
+    "ikev2": 10
+  }
+}

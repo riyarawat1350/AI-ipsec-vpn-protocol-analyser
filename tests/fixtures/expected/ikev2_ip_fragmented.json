@@ -1,0 +1,6 @@
+{
+  "fixture": "F16",
+  "reassembled": true,
+  "fragment_count": 6,
+  "expected_max_severity": "Info"
+}

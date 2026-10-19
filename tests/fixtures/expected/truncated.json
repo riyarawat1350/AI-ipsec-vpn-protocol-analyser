@@ -1,0 +1,7 @@
+{
+  "fixture": "F19",
+  "file": "truncated.pcap",
+  "expected_status": "completed",
+  "expected_warning": "truncated",
+  "parseable_before_cut": true
+}

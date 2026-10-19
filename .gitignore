@@ -30,6 +30,7 @@ uploads/
 *.pcapng
 !tests/fixtures/pcaps/*.pcap
 !tests/fixtures/pcaps/*.pcapng
+tests/fixtures/*/ikev2_s2s_ipsec_vpn_aes_gcm.pcapng
 
 # Node
 node_modules/

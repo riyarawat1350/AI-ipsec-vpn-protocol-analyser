@@ -1,0 +1,35 @@
+{
+  "fixture": "F04",
+  "file": "ikev1_mainmode_psk.pcap",
+  "expected_findings": [
+    {
+      "rule_id": "IKE-V1-001",
+      "risk_score": 40.0,
+      "severity": "Medium"
+    },
+    {
+      "rule_id": "CRY-DH-001",
+      "risk_score": 80.0,
+      "severity": "High"
+    },
+    {
+      "rule_id": "IKE-V1-005",
+      "risk_score": 20.0,
+      "severity": "Low"
+    },
+    {
+      "rule_id": "CRY-INT-001",
+      "risk_score": 20.0,
+      "severity": "Low"
+    },
+    {
+      "rule_id": "CRY-ENC-002",
+      "severity": "Info"
+    }
+  ],
+  "protocol_counts": {
+    "ikev1": 6
+  },
+  "version": 1,
+  "mode": "main"
+}

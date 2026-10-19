@@ -1,0 +1,15 @@
+{
+  "fixture": "F01",
+  "file": "ikev2_modern_gcm_x25519.pcap",
+  "expected_findings": [
+    "IKE-INFO-001"
+  ],
+  "expected_posture": {
+    "score": 100.0,
+    "grade": "A"
+  },
+  "protocol_counts": {
+    "ikev2": 2,
+    "esp": 5
+  }
+}

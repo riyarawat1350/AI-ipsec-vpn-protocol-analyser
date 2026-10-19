@@ -1,4 +1,4 @@
-export type CapabilityStatus = 'implemented' | 'partial' | 'not_implemented';
+export type CapabilityStatus = 'implemented' | 'partial' | 'not_implemented' | 'not_configured';
 
 export interface CapabilityEntry {
   id: string;

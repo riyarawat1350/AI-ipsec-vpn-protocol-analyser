@@ -1,0 +1,13 @@
+{
+  "fixture": "F14",
+  "expected_findings": [
+    {
+      "rule_id": "AH-001",
+      "risk_score": 20.0,
+      "severity": "Low"
+    }
+  ],
+  "protocol_counts": {
+    "ah": 10
+  }
+}

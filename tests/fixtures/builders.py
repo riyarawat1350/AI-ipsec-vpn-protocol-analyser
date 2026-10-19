@@ -259,9 +259,9 @@ def build_ikev1_proposal(
         transforms = []
     transform_data = b"".join(transforms)
     total = 8 + len(spi) + len(transform_data)
-    return struct.pack(">BBBBBB",
-        0, 0,                     # last/more, reserved
-        *struct.pack(">H", total),  # length
+    return struct.pack(">BBHBBBB",
+        0, 0,            # last/more, reserved
+        total,           # length (2 bytes)
         proposal_num, protocol_id, len(spi), len(transforms)
     ) + spi + transform_data
 
@@ -360,21 +360,39 @@ def build_udp(sport: int, dport: int, payload: bytes) -> bytes:
     return struct.pack(">HHHH", sport, dport, length, 0) + payload
 
 
+def calc_ipv4_checksum(hdr: bytes) -> int:
+    """Calculate 16-bit one's-complement checksum of IPv4 header."""
+    words = struct.unpack(f">{len(hdr) // 2}H", hdr)
+    total = sum(words)
+    while total > 0xFFFF:
+        total = (total & 0xFFFF) + (total >> 16)
+    return (~total) & 0xFFFF
+
+
 def build_ipv4(
     src: str, dst: str, proto: int, payload: bytes,
     pkt_id: int = 1, ttl: int = 64,
 ) -> bytes:
-    """Build minimal IPv4 packet (no options, checksum=0)."""
+    """Build minimal IPv4 packet (no options, with valid RFC 791 header checksum)."""
     def ip2int(s: str) -> int:
         parts = s.split(".")
         return (int(parts[0]) << 24) | (int(parts[1]) << 16) | (int(parts[2]) << 8) | int(parts[3])
 
     total_len = 20 + len(payload)
-    header = struct.pack(">BBHHHBBHII",
+    hdr_no_csum = struct.pack(">BBHHHBBHII",
         0x45, 0,        # version+IHL, DSCP+ECN
         total_len,
         pkt_id, 0,      # id, flags+fragment_offset
         ttl, proto, 0,  # ttl, proto, checksum(0)
+        ip2int(src),
+        ip2int(dst),
+    )
+    csum = calc_ipv4_checksum(hdr_no_csum)
+    header = struct.pack(">BBHHHBBHII",
+        0x45, 0,
+        total_len,
+        pkt_id, 0,
+        ttl, proto, csum,
         ip2int(src),
         ip2int(dst),
     )

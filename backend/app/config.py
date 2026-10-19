@@ -22,8 +22,10 @@ class AppSettings(BaseSettings):
     PORT: int = 8000
     LOG_LEVEL: str = "INFO"
 
-    # Database and file storage
-    DATABASE_URL: str = "sqlite:///./data/ipsecscope.db"
+    # Database — MongoDB only (SQLite is NOT supported).
+    # Set MONGODB_URL in .env:
+    #   Local:  mongodb://localhost:27017
+    #   Atlas:  mongodb+srv://<user>:<pass>@<host>/<db>?retryWrites=true&w=majority
     MONGODB_URL: str = "mongodb://localhost:27017"
     MONGODB_DB_NAME: str = "ipsecscope"
     UPLOAD_DIR: str = "./data/uploads"

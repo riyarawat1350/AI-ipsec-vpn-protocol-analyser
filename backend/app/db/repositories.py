@@ -209,6 +209,15 @@ class FindingsRepository:
             query["severity"] = severity
         return await self._col.count_documents(query)
 
+    async def get_by_id(self, finding_id: str) -> dict[str, Any] | None:
+        return await self._col.find_one({"$or": [{"_id": finding_id}, {"id": finding_id}]})
+
+    async def get_by_analysis_and_id(self, analysis_id: str, finding_id: str) -> dict[str, Any] | None:
+        return await self._col.find_one({
+            "analysis_id": analysis_id,
+            "$or": [{"_id": finding_id}, {"id": finding_id}],
+        })
+
     async def delete_by_analysis(self, analysis_id: str) -> int:
         result = await self._col.delete_many({"analysis_id": analysis_id})
         return result.deleted_count
@@ -340,3 +349,38 @@ class AuditRepository:
             "timestamp": _now(),
         }
         await self._col.insert_one(doc)
+
+
+# ---------------------------------------------------------------------------
+# Report repository
+# ---------------------------------------------------------------------------
+
+class ReportRepository:
+    def __init__(self, db: AsyncIOMotorDatabase) -> None:
+        self._col = db["reports"]
+
+    async def create(
+        self,
+        analysis_id: str,
+        report_format: str,
+        stored_path: str,
+        sha256: str,
+    ) -> dict[str, Any]:
+        doc = {
+            "_id": _new_id(),
+            "analysis_id": analysis_id,
+            "format": report_format,
+            "stored_path": stored_path,
+            "sha256": sha256,
+            "created_at": _now(),
+        }
+        await self._col.insert_one(doc)
+        return doc
+
+    async def get_by_id(self, report_id: str) -> dict[str, Any] | None:
+        return await self._col.find_one({"_id": report_id})
+
+    async def list_by_analysis(self, analysis_id: str) -> list[dict[str, Any]]:
+        cursor = self._col.find({"analysis_id": analysis_id}).sort("created_at", -1)
+        return await cursor.to_list(length=100)
+

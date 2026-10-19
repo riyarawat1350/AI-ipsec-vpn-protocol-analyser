@@ -1,0 +1,9 @@
+{
+  "fixture": "F07",
+  "file": "ikev2_cookie_retry.pcap",
+  "cookie_used": true,
+  "expected_max_severity": "Info",
+  "protocol_counts": {
+    "ikev2": 4
+  }
+}

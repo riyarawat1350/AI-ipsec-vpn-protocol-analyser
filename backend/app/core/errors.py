@@ -25,6 +25,9 @@ class AppException(Exception):
         self.details = details or {}
 
 
+AppError = AppException
+
+
 class NotFoundError(AppException):
     def __init__(self, message: str = "Resource not found", details: Any = None):
         super().__init__(

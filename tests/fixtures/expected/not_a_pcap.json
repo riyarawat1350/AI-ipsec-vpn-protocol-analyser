@@ -1,0 +1,6 @@
+{
+  "fixture": "F20",
+  "file": "not_a_pcap.txt",
+  "expected_http_status": 415,
+  "expected_error_code": "UNSUPPORTED_FILE_TYPE"
+}

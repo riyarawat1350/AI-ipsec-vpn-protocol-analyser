@@ -1,0 +1,12 @@
+{
+  "fixture": "F15",
+  "expected_findings": [
+    {
+      "rule_id": "IKE-PROTO-001",
+      "risk_score": 22.8,
+      "severity": "Low"
+    }
+  ],
+  "malformed_count": 2,
+  "no_crash": true
+}

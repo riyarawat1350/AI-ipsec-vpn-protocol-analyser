@@ -1,0 +1,19 @@
+{
+  "fixture": "F10",
+  "file": "lab_ike_init_flood.pcap",
+  "expected_findings": [
+    {
+      "rule_id": "IKE-DOS-001",
+      "risk_score": 57.6,
+      "severity": "Medium"
+    },
+    {
+      "rule_id": "IKE-DOS-002",
+      "risk_score": 43.2,
+      "severity": "Medium"
+    }
+  ],
+  "packet_count": 4000,
+  "unique_initiators": 1,
+  "duration_seconds": 10
+}

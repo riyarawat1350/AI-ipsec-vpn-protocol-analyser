@@ -1,4 +1,20 @@
 services:
+  # ── Local MongoDB (Option A: no Atlas needed) ────────────────────────────────
+  mongo:
+    image: mongo:7
+    container_name: ipsecscope-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"          # localhost:27017 — do NOT expose in production
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
   backend:
     build:
       context: .
@@ -12,17 +28,24 @@ services:
     environment:
       - HOST=0.0.0.0
       - PORT=8000
-      - DATABASE_URL=sqlite:////app/data/ipsecscope.db
+      # MongoDB URL — override with MONGODB_URL env var or .env for Atlas
+      # Default: local mongo service (Option A)
+      - MONGODB_URL=mongodb://mongo:27017
+      - MONGODB_DB_NAME=ipsecscope
       - UPLOAD_DIR=/app/data/uploads
       - REPORT_DIR=/app/data/reports
       - MAX_UPLOAD_MB=200
       - WORKERS=2
       - LOG_LEVEL=INFO
+    depends_on:
+      mongo:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 10s
       timeout: 5s
       retries: 3
+      start_period: 10s
 
   frontend:
     build:
@@ -35,3 +58,6 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+
+volumes:
+  mongo_data:

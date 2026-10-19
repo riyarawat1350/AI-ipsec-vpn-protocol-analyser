@@ -1,0 +1,30 @@
+{
+  "fixture": "F17",
+  "expected_findings": [
+    {
+      "rule_id": "CRY-ENC-001",
+      "risk_score": 100.0,
+      "severity": "Critical"
+    },
+    {
+      "rule_id": "CRY-DH-001",
+      "risk_score": 100.0,
+      "severity": "Critical"
+    },
+    {
+      "rule_id": "CRY-INT-001",
+      "risk_score": 40.0,
+      "severity": "Medium"
+    },
+    {
+      "rule_id": "CRY-INT-001",
+      "risk_score": 40.0,
+      "severity": "Medium"
+    }
+  ],
+  "expected_posture": {
+    "grade": "F"
+  },
+  "encryption": "DES",
+  "dh_group": 1
+}

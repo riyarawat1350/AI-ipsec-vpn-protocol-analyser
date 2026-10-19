@@ -1,0 +1,8 @@
+{
+  "fixture": "F21",
+  "expected_findings": [
+    "IKE-INFO-001"
+  ],
+  "xss_in_vendor_id": true,
+  "expected_rendering": "escaped"
+}

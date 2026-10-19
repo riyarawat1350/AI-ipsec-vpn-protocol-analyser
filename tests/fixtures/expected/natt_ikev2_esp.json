@@ -1,0 +1,14 @@
+{
+  "fixture": "F06",
+  "file": "natt_ikev2_esp.pcap",
+  "expected_findings": [
+    "IKE-INFO-002",
+    "IKE-INFO-001"
+  ],
+  "expected_posture": {
+    "score": 100.0,
+    "grade": "A"
+  },
+  "natt": true,
+  "keepalive_count": 10
+}

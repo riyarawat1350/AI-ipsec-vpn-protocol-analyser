@@ -1,0 +1,14 @@
+{
+  "fixture": "F18",
+  "expected_findings": [
+    {
+      "rule_id": "IKE-NEG-003",
+      "risk_score": 20.4,
+      "severity": "Low"
+    }
+  ],
+  "retransmits": 3,
+  "protocol_counts": {
+    "ikev2": 4
+  }
+}

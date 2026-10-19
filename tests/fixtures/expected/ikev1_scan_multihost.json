@@ -1,0 +1,20 @@
+{
+  "fixture": "F11",
+  "file": "ikev1_scan_multihost.pcap",
+  "expected_findings": [
+    {
+      "rule_id": "IKE-RECON-001",
+      "risk_score": 28.8,
+      "severity": "Low"
+    },
+    {
+      "rule_id": "IKE-V1-001",
+      "risk_score": 40.0,
+      "severity": "Medium"
+    }
+  ],
+  "unique_destinations": 12,
+  "protocol_counts": {
+    "ikev1": 12
+  }
+}

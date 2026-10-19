@@ -4,11 +4,12 @@ Defines the implementation status of features (FR-85).
 Must honestly reflect system capabilities without faking or pretending.
 """
 
+import os
 from typing import Literal
 
 from pydantic import BaseModel, Field
 
-CapabilityStatus = Literal["implemented", "partial", "not_implemented"]
+CapabilityStatus = Literal["implemented", "partial", "not_implemented", "not_configured"]
 CapabilityPriority = Literal["M", "S", "A", "F"]
 
 
@@ -206,6 +207,45 @@ CAPABILITIES_REGISTRY: list[CapabilityEntry] = [
 ]
 
 
+def is_llm_configured() -> bool:
+    """Return True if an LLM provider and credentials are configured."""
+    provider = os.getenv("LLM_PROVIDER", "none").strip().lower()
+    api_key = os.getenv("LLM_API_KEY", "").strip()
+    if provider in ("none", "", "disabled"):
+        return False
+    if provider in ("openai_compat", "anthropic") and not api_key:
+        return False
+    return True
+
+
 def get_capabilities() -> list[CapabilityEntry]:
-    """Return all capability entries."""
-    return list(CAPABILITIES_REGISTRY)
+    """Return all capability entries with live environment checks."""
+    llm_ready = is_llm_configured()
+    entries: list[CapabilityEntry] = []
+    for c in CAPABILITIES_REGISTRY:
+        if c.id == "FR-60":
+            if llm_ready:
+                provider_name = os.getenv("LLM_PROVIDER", "openai_compat")
+                model_name = os.getenv("LLM_MODEL", "llama-3.3-70b-versatile")
+                entries.append(
+                    CapabilityEntry(
+                        id=c.id,
+                        feature=c.feature,
+                        status="implemented",
+                        priority=c.priority,
+                        notes=f"Active provider: {provider_name} ({model_name}). Sanitized input, validated schema with deterministic fallback.",
+                    )
+                )
+            else:
+                entries.append(
+                    CapabilityEntry(
+                        id=c.id,
+                        feature=c.feature,
+                        status="not_configured",
+                        priority=c.priority,
+                        notes="LLM provider or API key not configured; deterministic template summary is used exclusively.",
+                    )
+                )
+        else:
+            entries.append(c)
+    return entries

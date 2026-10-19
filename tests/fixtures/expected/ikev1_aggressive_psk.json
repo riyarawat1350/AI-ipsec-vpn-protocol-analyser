@@ -1,0 +1,41 @@
+{
+  "fixture": "F05",
+  "file": "ikev1_aggressive_psk.pcap",
+  "expected_findings": [
+    {
+      "rule_id": "IKE-V1-001",
+      "risk_score": 40.0,
+      "severity": "Medium"
+    },
+    {
+      "rule_id": "IKE-V1-002",
+      "risk_score": 60.0,
+      "severity": "Medium"
+    },
+    {
+      "rule_id": "IKE-V1-003",
+      "risk_score": 80.0,
+      "severity": "High"
+    },
+    {
+      "rule_id": "CRY-DH-001",
+      "risk_score": 80.0,
+      "severity": "High"
+    },
+    {
+      "rule_id": "IKE-V1-005",
+      "risk_score": 20.0,
+      "severity": "Low"
+    },
+    {
+      "rule_id": "CRY-INT-001",
+      "risk_score": 20.0,
+      "severity": "Low"
+    }
+  ],
+  "protocol_counts": {
+    "ikev1": 2
+  },
+  "version": 1,
+  "mode": "aggressive"
+}

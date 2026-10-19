@@ -82,3 +82,14 @@ def load_policy(policy_id: str = "nist_default") -> PolicyDef:
         return load_policy_from_file(candidate2)
 
     raise PolicyLoadError(f"Unknown policy '{policy_id}'. Searched {candidate1} and {candidate2}")
+
+
+def get_available_policies() -> list[str]:
+    """Return list of all available policy IDs."""
+    ids: set[str] = set()
+    for d in (DEFAULT_POLICIES_DIR, ROOT_POLICIES_DIR):
+        if d.exists():
+            for f in d.glob("*.yaml"):
+                ids.add(f.stem)
+    return sorted(list(ids)) or ["nist_default", "strict", "legacy_tolerant"]
+

@@ -72,11 +72,9 @@ echo   Backend  : http://localhost:8000
 echo   API Docs : http://localhost:8000/docs
 echo   Frontend : http://localhost:5173
 echo.
-echo   Press any key to open the app in browser.
+echo   Opening browser in 3 seconds...
 echo  ==========================================
 echo.
-pause >nul
-
+timeout /t 3 /nobreak >nul
 start http://localhost:5173
-
 exit /b 0

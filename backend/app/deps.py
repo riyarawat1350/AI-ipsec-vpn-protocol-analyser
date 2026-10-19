@@ -32,3 +32,7 @@ def verify_api_token(authorization: str | None = Header(default=None)) -> None:
     token = parts[1]
     if token != settings.API_TOKEN:
         raise UnauthorizedError("Invalid bearer token")
+
+
+get_current_token = verify_api_token
+

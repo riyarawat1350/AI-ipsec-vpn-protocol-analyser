@@ -23,9 +23,10 @@ def set_sqlite_pragma(dbapi_connection: object, connection_record: object) -> No
         cursor.close()
 
 
+_db_url = getattr(settings, "DATABASE_URL", "sqlite:///:memory:")
 engine = create_engine(
-    settings.DATABASE_URL,
-    connect_args={"check_same_thread": False} if settings.DATABASE_URL.startswith("sqlite") else {},
+    _db_url,
+    connect_args={"check_same_thread": False} if _db_url.startswith("sqlite") else {},
     echo=False,
 )
 

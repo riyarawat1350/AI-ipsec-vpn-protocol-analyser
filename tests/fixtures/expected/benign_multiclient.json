@@ -1,0 +1,8 @@
+{
+  "fixture": "F22",
+  "expected_max_severity": "Info",
+  "client_count": 5,
+  "expected_posture": {
+    "grade": "A"
+  }
+}
