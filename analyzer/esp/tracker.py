@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import collections
 import struct
-from typing import Any, Literal
+from typing import Literal
 
 from analyzer.models import FlowSeqStats, IpsecFlow
 

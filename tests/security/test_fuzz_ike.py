@@ -8,10 +8,13 @@ ValueError).
 from __future__ import annotations
 
 import struct
-from hypothesis import given, settings, strategies as st
-from analyzer.ike.parser_v2 import parse_ikev2
-from analyzer.ike.parser_v1 import parse_ikev1
+
+from hypothesis import given, settings
+from hypothesis import strategies as st
+
 from analyzer.ike.common import ParseError
+from analyzer.ike.parser_v1 import parse_ikev1
+from analyzer.ike.parser_v2 import parse_ikev2
 
 
 @settings(max_examples=300, deadline=None)

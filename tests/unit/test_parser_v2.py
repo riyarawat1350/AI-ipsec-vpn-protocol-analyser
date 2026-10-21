@@ -6,16 +6,30 @@ import struct
 
 import pytest
 
-from analyzer.ike.parser_v2 import parse_ikev2, parse_ikev2_header
 from analyzer.ike.common import ParseError
+from analyzer.ike.parser_v2 import parse_ikev2, parse_ikev2_header
 from tests.fixtures.builders import (
-    FLAG_INITIATOR, FLAG_RESPONSE,
-    IKEv2_SA_INIT, IKEv2_AUTH,
-    PL_SA, PL_KE, PL_NONCE, PL_NOTIFY, PL_SK, PL_VENDOR, PL_NONE,
-    build_ikev2_header, build_ikev2_sa_payload, build_ikev2_proposal,
-    build_ikev2_transform, build_ikev2_ke, build_ikev2_nonce,
-    build_ikev2_notify, build_vendor_id, build_ikev2_sk_stub,
+    FLAG_INITIATOR,
+    FLAG_RESPONSE,
+    PL_KE,
+    PL_NONCE,
+    PL_NONE,
+    PL_NOTIFY,
+    PL_SA,
+    PL_SK,
+    PL_VENDOR,
+    IKEv2_AUTH,
+    IKEv2_SA_INIT,
     _chain_payloads,
+    build_ikev2_header,
+    build_ikev2_ke,
+    build_ikev2_nonce,
+    build_ikev2_notify,
+    build_ikev2_proposal,
+    build_ikev2_sa_payload,
+    build_ikev2_sk_stub,
+    build_ikev2_transform,
+    build_vendor_id,
 )
 
 

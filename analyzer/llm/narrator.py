@@ -84,9 +84,9 @@ def generate_template_narrative(
     low_count = sum(1 for f in findings if f.severity == "Low")
     info_count = sum(1 for f in findings if f.severity == "Info")
 
-    top_risks = sorted(findings, key=lambda f: f.risk_score, reverse=True)[:3]
+    top_risks = sorted(findings, key=lambda f: f.risk_score or 0.0, reverse=True)[:3]
     top_risk_summaries = [
-        f"{f.rule_id} ({f.severity}, Risk {f.risk_score:.1f}): {f.title}"
+        f"{f.rule_id} ({f.severity}" + (f", Risk {f.risk_score:.1f}" if f.risk_score is not None else "") + f"): {f.title}"
         for f in top_risks
     ]
 

@@ -6,6 +6,7 @@ Inspects packet-level anomalies, malformed structures, and invalid states.
 from __future__ import annotations
 
 from typing import Any
+
 from analyzer.models import Evidence, Facts, RawFinding
 
 
@@ -14,12 +15,6 @@ def detect_protocol_anomalies(
 ) -> list[RawFinding]:
     """Detect malformed frames, length inconsistencies, and protocol violations."""
     findings: list[RawFinding] = []
-
-    # Check for warnings in capture facts
-    malformed_warnings = [
-        w for w in facts.warnings
-        if any(term in w.lower() for term in ("malformed", "truncated", "anomaly", "length"))
-    ]
 
     session_anomalies: list[tuple[str, str, int]] = []
     for sess in facts.sessions:

@@ -7,6 +7,7 @@ Strict validation (extra fields forbidden, safe types only).
 from __future__ import annotations
 
 from typing import Any, Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -42,6 +43,9 @@ class RuleDef(BaseModel):
     mitre: list[str] = Field(default_factory=list)
     recommendation_id: str | None = None
     params: dict[str, Any] = Field(default_factory=dict)
+    plain_summary: str = ""
+    plain_impact: str = ""
+    plain_fix: str = ""
 
 
 class PolicyDef(BaseModel):

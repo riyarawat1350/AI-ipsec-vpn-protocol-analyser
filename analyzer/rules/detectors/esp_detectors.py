@@ -11,6 +11,7 @@ Detects:
 from __future__ import annotations
 
 from typing import Any
+
 from analyzer.models import Evidence, Facts, RawFinding
 
 
@@ -32,7 +33,8 @@ def detect_esp_anomalies(
                         message=f"ESP packet on flow {flow.src} -> {flow.dst} (SPI {flow.spi}) matches plaintext/tunnel heuristic",
                         field_path="esp.payload",
                         raw_value=flow.inferred_mode,
-                        hex_excerpt="",
+                        decoded=f"Inferred {flow.inferred_mode or 'plaintext'} unencrypted inner packet",
+                        hex_excerpt=flow.spi,
                         note=f"Inferred mode: {flow.inferred_mode}, confidence: {flow.null_confidence or 0.85}",
                     )
                 )
@@ -77,8 +79,9 @@ def detect_esp_anomalies(
                         message=f"Sequence number gap from {start_seq} to {end_seq}",
                         field_path="esp.seq",
                         raw_value={"gap_start": start_seq, "gap_end": end_seq},
-                        hex_excerpt="",
-                        note=f"Packet loss or out-of-order delivery observed",
+                        decoded=f"Sequence number gap [{start_seq}..{end_seq}]",
+                        hex_excerpt=f"{start_seq:08x}",
+                        note="Packet loss or out-of-order delivery observed",
                     )
                 )
             if flow.seq.duplicates > 0:
@@ -89,7 +92,8 @@ def detect_esp_anomalies(
                         message=f"Observed {flow.seq.duplicates} duplicate ESP sequence numbers",
                         field_path="esp.seq",
                         raw_value={"duplicates": flow.seq.duplicates},
-                        hex_excerpt="",
+                        decoded=f"{flow.seq.duplicates} duplicate/replayed ESP sequence numbers",
+                        hex_excerpt=f"{flow.seq.duplicates:04x}",
                         note="Replay or duplicate transmission detected",
                     )
                 )
@@ -148,6 +152,7 @@ def detect_esp_anomalies(
                             message=f"Sequence number reached {flow.seq.max_seq}",
                             field_path="esp.seq",
                             raw_value=flow.seq.max_seq,
+                            decoded=f"Sequence number 0x{flow.seq.max_seq:08x} near 32-bit limit",
                             hex_excerpt=f"{flow.seq.max_seq:08x}",
                             note="Sequence approaching 2^32 boundary",
                         )
@@ -187,7 +192,8 @@ def detect_esp_anomalies(
                             message=f"ESP flow with {flow.packets} packets without observed IKE",
                             field_path="esp.spi",
                             raw_value=flow.spi,
-                            hex_excerpt="",
+                            decoded=f"ESP SPI 0x{flow.spi} ({flow.packets} packets)",
+                            hex_excerpt=flow.spi,
                             note="Session negotiation unobserved",
                         )
                     ],
@@ -197,7 +203,7 @@ def detect_esp_anomalies(
                     mitre=[],
                     recommendation_id="REC-CAPTURE-COMPLETE",
                     params={"spi": flow.spi, "packets": flow.packets},
-                    override_severity="Low",
+                    override_severity="Info",
                 )
             )
 
@@ -227,7 +233,8 @@ def detect_esp_anomalies(
                             message=f"AH packet observed with SPI {flow.spi}",
                             field_path="ip.proto",
                             raw_value=51,
-                            hex_excerpt="",
+                            decoded="IP Protocol 51 (Authentication Header - AH)",
+                            hex_excerpt="33",
                             note="Protocol 51 (AH)",
                         )
                     ],

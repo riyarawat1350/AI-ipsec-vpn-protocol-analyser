@@ -59,7 +59,7 @@ export const FindingsPage: React.FC = () => {
         </div>
 
         <div className="text-xs font-mono text-slate-400">
-          Showing <strong className="text-white">{findings.length}</strong> of <strong className="text-white">{total}</strong> findings
+          Showing <strong className="text-white">{findings.length}</strong> of <strong className="text-white">{total}</strong> {total === 1 ? 'finding' : 'findings'}
         </div>
       </div>
 

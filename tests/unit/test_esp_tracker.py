@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 from pathlib import Path
-import pytest
 
-from analyzer.capture.reader import CaptureReader
 from analyzer.capture.decode import PacketDecoder
-from analyzer.esp.tracker import FlowTracker, parse_esp_packet
+from analyzer.capture.reader import CaptureReader
 from analyzer.esp.ah import parse_ah_header
+from analyzer.esp.tracker import FlowTracker, parse_esp_packet
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures" / "pcap"
 

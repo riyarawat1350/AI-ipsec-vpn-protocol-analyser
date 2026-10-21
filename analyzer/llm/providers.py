@@ -99,7 +99,7 @@ class OpenAICompatProvider:
                         models_endpoint = self.endpoint.replace("/chat/completions", "/models")
                         m_resp = httpx.get(models_endpoint, headers=headers, timeout=self.timeout_seconds)
                         if m_resp.status_code == 200:
-                            data_models = [m["id"] for m in m_resp.json().get("data", []) if not m["id"].startswith("whisper") and not "guard" in m["id"]]
+                            data_models = [m["id"] for m in m_resp.json().get("data", []) if not m["id"].startswith("whisper") and "guard" not in m["id"]]
                             if data_models:
                                 chosen = "openai/gpt-oss-120b" if "openai/gpt-oss-120b" in data_models else data_models[0]
                                 self.model = chosen

@@ -19,6 +19,7 @@ import { TimelinePage } from './pages/TimelinePage';
 import { ComparePage } from './pages/ComparePage';
 import { ReportPage } from './pages/ReportPage';
 import { CapabilitiesPage } from './pages/CapabilitiesPage';
+import { GlossaryPage } from './pages/GlossaryPage';
 
 export const App: React.FC = () => {
   return (
@@ -75,6 +76,9 @@ export const App: React.FC = () => {
             {/* Screen 16: Capabilities & Scope Declaration */}
             <Route path="/about" element={<CapabilitiesPage />} />
             <Route path="/capabilities" element={<Navigate to="/about" replace />} />
+
+            {/* Screen 17: Plain-Language Glossary */}
+            <Route path="/glossary" element={<GlossaryPage />} />
 
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />

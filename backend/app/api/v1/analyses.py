@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-from fastapi import APIRouter, Depends, File, Form, Query, Response, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from backend.app.core.errors import AppError
@@ -196,6 +196,7 @@ async def get_analysis_overview(
         "posture": analysis.get("posture") or {},
         "grade": analysis.get("grade", "A"),
         "severity_counts": analysis.get("finding_counts") or {},
+        "finding_counts": analysis.get("finding_counts") or {},
         "top_findings": top_findings,
         "narrative": analysis.get("narrative") or {},
         "coverage_notes": analysis.get("coverage_notes") or [],
@@ -218,9 +219,10 @@ async def get_analysis_protocols(
         raise AppError(code="ANALYSIS_NOT_COMPLETE", message="Analysis not complete.", status_code=409)
 
     stats = analysis.get("protocol_stats") or {}
-    counts = stats.get("counts") or {}
+    counts = dict(stats.get("counts") or {})
     capture = analysis.get("capture_stats") or {}
     total_pkts = capture.get("total_packets", 0)
+    counts["total_packets"] = total_pkts
 
     # Calculate protocol distribution packet counters
     ike_pkts = counts.get("ikev2", 0) + counts.get("ikev1", 0) + counts.get("ike", 0)

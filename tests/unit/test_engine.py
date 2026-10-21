@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import pytest
-from analyzer.models import Facts, IkeProposal, IkeSession, IkeTransform, Observation
 from analyzer.features.facts import build_observations_from_sessions
-from analyzer.rules.conditions import evaluate_condition, get_field_value
+from analyzer.models import Facts, IkeProposal, IkeSession, IkeTransform, Observation
+from analyzer.rules.conditions import evaluate_condition
 from analyzer.rules.engine import RuleEngine
 from analyzer.rules.loader import load_policy_from_str
 

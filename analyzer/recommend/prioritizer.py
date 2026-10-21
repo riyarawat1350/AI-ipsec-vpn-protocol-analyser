@@ -6,6 +6,7 @@ Ranks remediation actions by risk reduction impact and operational effort.
 from __future__ import annotations
 
 from typing import Any
+
 from analyzer.models import Finding
 
 RECOMMENDATION_CATALOG: dict[str, dict[str, Any]] = {
@@ -159,8 +160,8 @@ def prioritize_recommendations(findings: list[Finding]) -> list[dict[str, Any]]:
     for rec_id, f_list in groups.items():
         meta = RECOMMENDATION_CATALOG.get(rec_id, DEFAULT_REC)
         # Total risk reduction = sum of risk scores of associated findings
-        total_risk = round(sum(f.risk_score for f in f_list), 1)
-        max_risk = max((f.risk_score for f in f_list), default=0.0)
+        total_risk = round(sum(f.risk_score for f in f_list if f.risk_score is not None), 1)
+        max_risk = max((f.risk_score for f in f_list if f.risk_score is not None), default=0.0)
 
         # Effort ranking weight: Low = 1, Medium = 2, High = 3
         effort_str = meta.get("effort", "Medium")

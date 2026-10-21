@@ -5,16 +5,15 @@ from __future__ import annotations
 import os
 import struct
 from pathlib import Path
-import pytest
 
-from analyzer.capture.reader import CaptureReader
 from analyzer.capture.decode import PacketDecoder
-from analyzer.esp.tracker import parse_esp_packet
+from analyzer.capture.reader import CaptureReader
 from analyzer.esp.null_heuristic import (
     check_esp_null,
-    verify_ipv4_checksum,
     is_candidate_null_packet,
+    verify_ipv4_checksum,
 )
+from analyzer.esp.tracker import parse_esp_packet
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures" / "pcap"
 
@@ -86,7 +85,7 @@ def test_random_encrypted_bytes_zero_false_positives() -> None:
     false_positives = 0
     total_flows = 1000
 
-    for flow_idx in range(total_flows):
+    for _flow_idx in range(total_flows):
         # 15 packets per flow with random 64-byte payload
         sample_prefixes = [os.urandom(64) for _ in range(15)]
         result = check_esp_null(sample_prefixes)

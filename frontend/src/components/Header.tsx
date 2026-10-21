@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Shield, Key, Info, UploadCloud, Layers } from 'lucide-react';
+import { Shield, Key, Info, UploadCloud, Layers, BookOpen, ToggleLeft, ToggleRight } from 'lucide-react';
 import { getStoredApiToken, setStoredApiToken } from '../api/client';
 
 export const Header: React.FC = () => {
@@ -8,6 +8,16 @@ export const Header: React.FC = () => {
   const [tokenModalOpen, setTokenModalOpen] = useState(false);
   const [tokenInput, setTokenInput] = useState(getStoredApiToken());
   const [currentToken, setCurrentToken] = useState(getStoredApiToken());
+  const [isSimpleMode, setIsSimpleMode] = useState<boolean>(() => {
+    return localStorage.getItem('ipsecscope_mode') !== 'technical';
+  });
+
+  const toggleMode = () => {
+    const nextMode = !isSimpleMode;
+    setIsSimpleMode(nextMode);
+    localStorage.setItem('ipsecscope_mode', nextMode ? 'simple' : 'technical');
+    window.dispatchEvent(new Event('mode_changed'));
+  };
 
   const handleSaveToken = () => {
     setStoredApiToken(tokenInput);
@@ -19,6 +29,7 @@ export const Header: React.FC = () => {
     { to: '/', label: 'Analyses', icon: Layers },
     { to: '/new', label: 'Upload Capture', icon: UploadCloud },
     { to: '/compare', label: 'Compare', icon: Shield },
+    { to: '/glossary', label: 'Glossary', icon: BookOpen },
     { to: '/about', label: 'Capabilities', icon: Info },
   ];
 
@@ -56,7 +67,30 @@ export const Header: React.FC = () => {
           </nav>
         </div>
 
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-3">
+          {/* Simple vs Technical Mode Toggle */}
+          <button
+            onClick={toggleMode}
+            title={isSimpleMode ? "Currently in Simple Mode (plain language explanations). Click to switch to Technical Mode." : "Currently in Technical Mode (hex, raw fields). Click to switch to Simple Mode."}
+            className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+              isSimpleMode
+                ? 'bg-sky-950/80 border-sky-600/80 text-sky-300 hover:bg-sky-900/80 shadow-sm'
+                : 'bg-slate-900 border-slate-700 text-slate-300 hover:bg-slate-800'
+            }`}
+          >
+            {isSimpleMode ? (
+              <>
+                <ToggleLeft className="w-4 h-4 text-sky-400" />
+                <span>Simple View</span>
+              </>
+            ) : (
+              <>
+                <ToggleRight className="w-4 h-4 text-emerald-400" />
+                <span>Technical View</span>
+              </>
+            )}
+          </button>
+
           <button
             onClick={() => setTokenModalOpen(true)}
             className={`flex items-center space-x-1.5 px-3 py-1.5 rounded text-xs font-medium border transition-colors ${

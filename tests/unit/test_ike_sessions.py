@@ -3,12 +3,10 @@
 from __future__ import annotations
 
 from pathlib import Path
-import pytest
 
-from analyzer.capture.reader import CaptureReader
 from analyzer.capture.decode import PacketDecoder
+from analyzer.capture.reader import CaptureReader
 from analyzer.ike.parser_v2 import parse_ikev2
-from analyzer.ike.parser_v1 import parse_ikev1
 from analyzer.ike.sessions import (
     IkeSessionReconstructor,
     ikemessage_to_model,

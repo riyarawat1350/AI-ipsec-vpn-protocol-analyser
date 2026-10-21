@@ -15,15 +15,8 @@ FR-30..FR-33 per SPEC §5.5:
 from __future__ import annotations
 
 import hashlib
-from typing import Any, Literal
-from analyzer.models import (
-    Endpoint,
-    IkeMessage,
-    IkeNotify,
-    IkeProposal,
-    IkeSession,
-    IkeTransform,
-)
+from typing import Literal
+
 from analyzer.ike.common import IKEMessage
 from analyzer.ike.constants import (
     IKEv1_AUTH,
@@ -32,6 +25,14 @@ from analyzer.ike.constants import (
     IKEv1_LIFE_TYPE,
     dh_name,
     expected_ke_size,
+)
+from analyzer.models import (
+    Endpoint,
+    IkeMessage,
+    IkeNotify,
+    IkeProposal,
+    IkeSession,
+    IkeTransform,
 )
 
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+
 from analyzer.rules.loader import (
     PolicyLoadError,
     compute_policy_hash,

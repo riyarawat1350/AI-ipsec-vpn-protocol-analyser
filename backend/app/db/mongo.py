@@ -10,6 +10,8 @@ chosen for FastAPI compatibility. All documents use _id = UUID string.
 from __future__ import annotations
 
 import logging
+import re
+
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from pymongo import ASCENDING, DESCENDING, IndexModel
 
@@ -18,9 +20,6 @@ logger = logging.getLogger(__name__)
 # Module-level client (lazy init)
 _client: AsyncIOMotorClient | None = None
 _db: AsyncIOMotorDatabase | None = None
-
-
-import re
 
 
 def mask_mongo_url(url: str) -> str:

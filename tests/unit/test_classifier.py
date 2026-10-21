@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import pytest
+
 from analyzer.classify.classifier import Protocol, ProtocolClassifier
 from analyzer.features.facts import build_facts_from_classifier
 from analyzer.models import DecodedPacket
-
 
 # ---------------------------------------------------------------------------
 # Helpers

@@ -1,7 +1,10 @@
-.PHONY: test lint run fixtures clean
+.PHONY: test lint run fixtures clean verify
 
 test:
 	python -m pytest tests/
+
+verify:
+	python -m pytest tests/verification/ -v -s
 
 lint:
 	ruff check analyzer backend tests

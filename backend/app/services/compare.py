@@ -8,6 +8,7 @@ findings, and posture score change.
 from __future__ import annotations
 
 from typing import Any
+
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from backend.app.core.errors import AppError

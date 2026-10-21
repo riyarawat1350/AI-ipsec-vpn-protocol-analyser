@@ -12,6 +12,7 @@ Unlinked flows report None.
 from __future__ import annotations
 
 from typing import Sequence
+
 from analyzer.models import IkeSession, IpsecFlow
 
 

@@ -160,3 +160,24 @@ export async function generateReport(id: string, format = 'html'): Promise<any> 
     body: JSON.stringify({ format }),
   });
 }
+
+// Glossary
+export interface GlossaryTerm {
+  id: string;
+  name: string;
+  expansion: string;
+  simple: string;
+  analogy?: string;
+  why_it_matters: string;
+  technical: string;
+}
+
+export async function fetchGlossary(q?: string): Promise<GlossaryTerm[]> {
+  const query = q ? `?q=${encodeURIComponent(q)}` : '';
+  const res = await request<any>(`/glossary${query}`);
+  return Array.isArray(res) ? res : res.items || [];
+}
+
+export async function fetchGlossaryTerm(termId: string): Promise<GlossaryTerm> {
+  return request<GlossaryTerm>(`/glossary/${encodeURIComponent(termId)}`);
+}

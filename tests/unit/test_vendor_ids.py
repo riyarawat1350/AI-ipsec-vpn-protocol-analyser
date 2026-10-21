@@ -3,13 +3,11 @@
 from __future__ import annotations
 
 from pathlib import Path
-import pytest
 
-from analyzer.capture.reader import CaptureReader
 from analyzer.capture.decode import PacketDecoder
-from analyzer.ike.parser_v2 import parse_ikev2
-from analyzer.ike.vendor_ids import lookup_vendor_id
+from analyzer.capture.reader import CaptureReader
 from analyzer.enrich.fingerprint import fingerprint_vendor_id, fingerprint_vendor_ids
+from analyzer.ike.parser_v2 import parse_ikev2
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures" / "pcap"
 

@@ -12,7 +12,6 @@ Naming convention matches Doc-05 §3 exactly.
 from __future__ import annotations
 
 import json
-import os
 import struct
 import sys
 from pathlib import Path
@@ -22,24 +21,50 @@ _ROOT = Path(__file__).parent.parent.parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from tests.fixtures.builders import (
+from tests.fixtures.builders import (  # noqa: E402
+    FLAG_INITIATOR,
+    FLAG_RESPONSE,
+    FLAG_V1_ENCRYPTION,
+    PL_KE,
+    PL_NONCE,
+    PL_NONE,
+    PL_NOTIFY,
+    PL_SA,
+    PL_SK,
+    PL_V1_HASH,
+    PL_V1_ID,
+    PL_V1_KE,
+    PL_V1_NONCE,
+    PL_V1_NONE,
+    PL_V1_SA,
+    PL_VENDOR,
+    IKEv1_AGGRESSIVE,
+    IKEv1_MAIN,
+    IKEv2_CREATE_CHILD_SA,
+    IKEv2_SA_INIT,
     PcapPacket,
-    PL_SA, PL_KE, PL_NONCE, PL_NOTIFY, PL_VENDOR, PL_SK, PL_NONE,
-    PL_V1_SA, PL_V1_KE, PL_V1_NONCE, PL_V1_VID, PL_V1_NONE,
-    PL_V1_ID, PL_V1_HASH,
-    FLAG_INITIATOR, FLAG_RESPONSE, FLAG_V1_ENCRYPTION,
-    IKEv2_SA_INIT, IKEv2_AUTH, IKEv2_CREATE_CHILD_SA, IKEv2_INFORMATIONAL,
-    IKEv1_MAIN, IKEv1_AGGRESSIVE,
-    build_ikev2_header, build_ikev2_sa_payload, build_ikev2_proposal,
-    build_ikev2_transform, build_ikev2_ke, build_ikev2_nonce,
-    build_ikev2_notify, build_vendor_id, build_ikev2_sk_stub,
-    build_ikev1_header, build_ikev1_sa_payload,
-    build_esp_packet, build_ah_packet,
-    natt_encap_ike, natt_encap_esp,
-    write_pcap, build_ike_raw_packet, build_esp_raw_packet,
-    _chain_payloads, _wrap_payload,
-    build_udp, build_ipv4, PCAP_LINK_ETHERNET,
+    _chain_payloads,
+    build_ah_packet,
+    build_esp_packet,
+    build_esp_raw_packet,
+    build_ike_raw_packet,
+    build_ikev1_header,
     build_ikev1_proposal,
+    build_ikev1_sa_payload,
+    build_ikev2_header,
+    build_ikev2_ke,
+    build_ikev2_nonce,
+    build_ikev2_notify,
+    build_ikev2_proposal,
+    build_ikev2_sa_payload,
+    build_ikev2_sk_stub,
+    build_ikev2_transform,
+    build_ipv4,
+    build_udp,
+    build_vendor_id,
+    natt_encap_esp,
+    natt_encap_ike,
+    write_pcap,
 )
 
 FIXTURES_DIR = Path(__file__).parent
@@ -78,14 +103,19 @@ DH_MODP2048 = 14 # strong
 DH_X25519   = 31 # strong
 
 
+PCAPS_DIR = FIXTURES_DIR / "pcaps"
+
+
 def _mkdir() -> None:
     EXPECTED_DIR.mkdir(parents=True, exist_ok=True)
     PCAP_DIR.mkdir(parents=True, exist_ok=True)
+    PCAPS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def _save(name: str, pcap_bytes: bytes, expected: dict) -> None:
     """Write the pcap and expected JSON for a fixture."""
     (PCAP_DIR / name).write_bytes(pcap_bytes)
+    (PCAPS_DIR / name).write_bytes(pcap_bytes)
     stem = name.replace(".pcap", "").replace(".pcapng", "")
     (EXPECTED_DIR / f"{stem}.json").write_text(json.dumps(expected, indent=2))
     print(f"  [OK] {name}  ({len(pcap_bytes)} bytes)")
@@ -509,7 +539,8 @@ def gen_f06_natt_ikev2_esp() -> None:
     proposal = build_ikev2_proposal(1, 1, [t_encr, t_prf, t_dh, t_esn])
     sa_body  = build_ikev2_sa_payload([proposal])
     nonce_body = build_ikev2_nonce(b"\xBB" * 16)
-    payloads = [(PL_SA, sa_body), (PL_NONCE, nonce_body)]
+    vid_body = build_vendor_id(b"strongSwan 5.9.13")
+    payloads = [(PL_SA, sa_body), (PL_NONCE, nonce_body), (PL_VENDOR, vid_body)]
     first_type, body_bytes = _chain_payloads(payloads)
 
     ike = build_ikev2_header(
@@ -1049,7 +1080,7 @@ def gen_f16_ikev2_ip_fragmented() -> None:
     frag_size = 64  # bytes per fragment (must be multiple of 8)
     total_len = len(udp_pkt)
     fragments = []
-    for i, offset in enumerate(range(0, total_len, frag_size)):
+    for _i, offset in enumerate(range(0, total_len, frag_size)):
         chunk = udp_pkt[offset:offset + frag_size]
         more = 1 if offset + frag_size < total_len else 0
         frag_offset = offset // 8
@@ -1171,9 +1202,10 @@ def gen_f19_truncated() -> None:
         next_payload=PL_NONCE, flags=FLAG_INITIATOR,
         exchange_type=IKEv2_SA_INIT, message_id=0, body=body,
     )
-    pkt = build_ike_raw_packet("10.19.0.1", "10.19.0.2", 500, 500, ike, 1700190000, 0, 1)
-    full_pcap = write_pcap([pkt])
-    # Cut the pcap mid-way through the last packet record
+    pkt1 = build_ike_raw_packet("10.19.0.1", "10.19.0.2", 500, 500, ike, 1700190000, 0, 1)
+    pkt2 = build_ike_raw_packet("10.19.0.2", "10.19.0.1", 500, 500, ike, 1700190001, 0, 2)
+    full_pcap = write_pcap([pkt1, pkt2])
+    # Cut the pcap mid-way through the second packet record
     truncated = full_pcap[:len(full_pcap) - 10]
     (PCAP_DIR / "truncated.pcap").write_bytes(truncated)
     (EXPECTED_DIR / "truncated.json").write_text(json.dumps({
@@ -1305,8 +1337,8 @@ def gen_f23_pcapng_two_interfaces() -> None:
         total = 12 + len(body)
         return _u32le(block_type) + _u32le(total) + body + _u32le(total)
 
-    # Section Header Block (SHB)
-    shb_body = struct.pack("<IHH", 0x1A2B3C4D, 1, 0) + _option(0, b"")
+    # Section Header Block (SHB): magic(4), major(2), minor(2), section_len(8)
+    shb_body = struct.pack("<IHHq", 0x1A2B3C4D, 1, 0, -1) + _option(0, b"")
     shb = _block(0x0A0D0D0A, shb_body)
 
     # Interface Description Block (IDB) × 2 — link type 1=Ethernet, 101=Raw
@@ -1360,7 +1392,6 @@ def gen_f23_pcapng_two_interfaces() -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 def gen_f24_sll_linktype() -> None:
     """Build a pcap with link_type=113 (SLL) containing one IKEv2 packet."""
-    from tests.fixtures.builders import PCAP_LINK_RAW, PCAP_MAGIC_US
 
     # SLL (Linux Cooked Capture) header: 16 bytes
     # packet_type(2) + arphrd(2) + addr_len(2) + addr(8) + protocol(2)

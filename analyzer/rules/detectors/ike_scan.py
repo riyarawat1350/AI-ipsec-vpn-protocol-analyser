@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from typing import Any
+
 from analyzer.models import Evidence, Facts, RawFinding
 
 
@@ -18,7 +19,6 @@ def detect_ike_scans(
     """Detect horizontal and vertical IKE network scanning."""
     cfg = settings or {}
     distinct_hosts_threshold = int(cfg.get("scan_distinct_hosts", 5))
-    window_s = float(cfg.get("scan_window_s", 60.0))
 
     findings: list[RawFinding] = []
 

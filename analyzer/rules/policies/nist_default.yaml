@@ -20,7 +20,7 @@ tables:
     "7": 4     # Blowfish: Weak (64-bit block)
     "11": 5    # NULL: Plaintext
   integ_impact:
-    "1": 4     # MD5: Weak
+    "1": 2     # MD5: Weak (SRS §12.1: impact 2)
     "2": 1     # SHA1: Phased-out legacy
 
 rules:
@@ -49,6 +49,9 @@ rules:
     references: ["NIST SP 800-77 Rev. 1", "RFC 8247 §2.4"]
     mitre: ["T1600.001"]
     recommendation_id: "REC-CRY-DH-001"
+    plain_summary: "The VPN is using an outdated Diffie-Hellman mathematical group for key exchange."
+    plain_impact: "Adversaries with high-performance computing power can compute secret keys and eavesdrop on private traffic."
+    plain_fix: "Reconfigure both VPN gateways to use Diffie-Hellman Group 14 (MODP-2048) or modern elliptic curves."
     params:
       min_modp_bits: 2048
 
@@ -77,6 +80,9 @@ rules:
     references: ["NIST SP 800-131A Rev. 2", "RFC 8247 §2.1"]
     mitre: ["T1600.001"]
     recommendation_id: "REC-CRY-ENC-001"
+    plain_summary: "The VPN is using broken or obsolete encryption ciphers such as DES or 3DES."
+    plain_impact: "Legacy ciphers can be cracked in hours or days, allowing attackers to read private transmitted data."
+    plain_fix: "Upgrade encryption profiles to AES-GCM (128 or 256 bits) and remove legacy ciphers."
     params:
       allowed_ciphers: ["AES-GCM", "AES-CBC", "ChaCha20-Poly1305"]
 
@@ -85,7 +91,7 @@ rules:
     target: "observation"
     category: "Cryptography"
     title: "Legacy CBC mode encryption in use: {name}"
-    explanation: "AES-CBC is in use. While secure with HMAC, migration to authenticated encryption (AEAD like AES-GCM) is recommended."
+    explanation: "AES-CBC is in use. While acceptable when paired with a strong HMAC, migration to modern authenticated encryption (AEAD such as AES-GCM) is recommended."
     why_this_matters: "AEAD algorithms prevent padding oracle attacks and provide higher cryptographic efficiency."
     condition:
       all:
@@ -93,8 +99,8 @@ rules:
           op: "eq"
           value: "encr"
         - field: "id"
-          op: "eq"
-          value: 12
+          op: "in"
+          value: [7, 12]
     impact: 1
     likelihood:
       from: "role"
@@ -103,6 +109,9 @@ rules:
     group_by: ["session_id", "kind", "id"]
     references: ["RFC 8247 §2.1.2"]
     recommendation_id: "REC-CRY-ENC-002"
+    plain_summary: "The VPN uses legacy CBC mode encryption instead of modern authenticated encryption."
+    plain_impact: "CBC mode is slower and can be vulnerable to padding oracle tampering attacks if HMAC verification fails."
+    plain_fix: "Migrate encryption profiles from AES-CBC to authenticated encryption (AEAD) like AES-GCM."
     params: {}
 
   # ── CRY-INT-001: Weak integrity or PRF hash algorithm ───────────────────────
@@ -130,6 +139,9 @@ rules:
     references: ["NIST SP 800-131A", "RFC 8247 §2.2"]
     mitre: ["T1600.001"]
     recommendation_id: "REC-CRY-INT-001"
+    plain_summary: "The VPN uses a weak hashing algorithm (MD5 or SHA-1) for packet integrity verification."
+    plain_impact: "Attackers can generate forged messages with identical hash checksums to tamper with tunnel data."
+    plain_fix: "Configure SHA-2 (SHA-256 or SHA-512) for all integrity and pseudorandom functions."
     params:
       min_hash_bits: 256
 
@@ -155,6 +167,9 @@ rules:
     group_by: ["session_id", "kind", "id"]
     references: ["RFC 7296 §3.3.2", "RFC 8247 §2.2"]
     recommendation_id: "REC-CRY-INT-002"
+    plain_summary: "Packets are encrypted without any integrity protection algorithm enabled."
+    plain_impact: "Active attackers can tamper with encrypted packets in flight without the receiver detecting changes."
+    plain_fix: "Enable an authenticated encryption cipher like AES-GCM or add a SHA-2 HMAC transform."
     params: {}
 
   # ── IKE-V1-001: Deprecated IKEv1 protocol in use ────────────────────────────
@@ -175,6 +190,9 @@ rules:
     group_by: ["id"]
     references: ["RFC 9395", "NIST SP 800-77 Rev. 1"]
     recommendation_id: "REC-IKEV2"
+    plain_summary: "The connection relies on the deprecated IKEv1 protocol."
+    plain_impact: "IKEv1 lacks modern cryptographic protections, negotiates slower, and cannot protect against quantum threats."
+    plain_fix: "Upgrade VPN gateway configurations to IKEv2 per RFC 7296."
     params: {}
 
   # ── IKE-V1-002: Aggressive Mode used ────────────────────────────────────────
@@ -198,6 +216,9 @@ rules:
     group_by: ["id"]
     references: ["RFC 2409 §5.4", "NIST SP 800-77 Rev. 1 §4.1"]
     recommendation_id: "REC-NO-AGGR"
+    plain_summary: "The connection uses IKEv1 Aggressive Mode."
+    plain_impact: "Device identities are sent across the public internet without encryption, exposing who is connecting."
+    plain_fix: "Switch to IKEv1 Main Mode or migrate to IKEv2."
     params: {}
 
   # ── IKE-V1-003: Aggressive Mode with PSK exposes hash ───────────────────────
@@ -228,6 +249,9 @@ rules:
     references: ["RFC 2409", "NIST SP 800-77 Rev. 1"]
     mitre: ["T1110.002"]
     recommendation_id: "REC-NO-AGGR"
+    plain_summary: "IKEv1 Aggressive Mode transmits authentication hashes unencrypted."
+    plain_impact: "Anyone recording network traffic can run password cracking tools offline to steal the pre-shared key."
+    plain_fix: "Disable Aggressive Mode immediately and rotate the pre-shared key."
     params: {}
 
   # ── IKE-V1-004: Excessive IKEv1 SA lifetime ─────────────────────────────────
@@ -251,6 +275,9 @@ rules:
     group_by: ["session_id", "kind"]
     references: ["NIST SP 800-77 Rev. 1"]
     recommendation_id: "REC-LIFETIME"
+    plain_summary: "The configured Security Association lifetime is unusually long."
+    plain_impact: "Using the same encryption key for too long gives attackers more time to compromise the key."
+    plain_fix: "Limit IKE SA lifetimes to a maximum of 24 hours (86400 seconds)."
     params:
       max_lifetime_seconds: 86400
 
@@ -278,6 +305,9 @@ rules:
     group_by: ["session_id", "kind", "id"]
     references: ["NIST SP 800-77 Rev. 1 §4.1"]
     recommendation_id: "REC-CERT-AUTH"
+    plain_summary: "The VPN uses a pre-shared password for gateway authentication."
+    plain_impact: "Shared passwords can be leaked, guessed, or reused across multiple unauthorized devices."
+    plain_fix: "Transition from pre-shared passwords to digital PKI certificates (RSA or ECDSA)."
     params: {}
 
   # ── IKE-PROTO-001: Malformed IKE messages ───────────────────────────────────
@@ -298,6 +328,9 @@ rules:
     group_by: ["id"]
     references: ["RFC 7296", "RFC 2409"]
     recommendation_id: "REC-INVESTIGATE-PEER"
+    plain_summary: "Malformed or anomalous IKE protocol messages were detected in the traffic."
+    plain_impact: "Can indicate active network probing, protocol fuzzing, or severe firewall firmware incompatibilities."
+    plain_fix: "Investigate firewall error logs and verify firmware compatibility between peers."
     params: {}
 
   # ── IKE-PROTO-002: Key Exchange length mismatch ─────────────────────────────
@@ -318,6 +351,9 @@ rules:
     group_by: ["id"]
     references: ["RFC 7296 §3.4", "RFC 8247"]
     recommendation_id: "REC-INVESTIGATE-PEER"
+    plain_summary: "The Key Exchange payload length does not match the chosen Diffie-Hellman group."
+    plain_impact: "Mismatched key lengths can lead to connection failures or small-subgroup cryptographic attacks."
+    plain_fix: "Ensure peer implementations agree on standard public key exchange lengths."
     params: {}
 
   # ── IKE-INFO-001: Peer implementation fingerprint ───────────────────────────
@@ -339,6 +375,9 @@ rules:
     group_by: ["id"]
     references: ["RFC 7296 §3.12", "RFC 2408 §3.13"]
     recommendation_id: "REC-PATCH-HYGIENE"
+    plain_summary: "The VPN gateway revealed its software brand and version in handshake headers."
+    plain_impact: "Informational finding; helps network administrators track device models but assists attackers in targeted exploits."
+    plain_fix: "Ensure gateway software is patched with the latest manufacturer firmware updates."
     params: {}
 
   # ── IKE-INFO-002: NAT-Traversal in use ──────────────────────────────────────
@@ -359,5 +398,8 @@ rules:
     override_severity: "Info"
     group_by: ["id"]
     references: ["RFC 3947", "RFC 3948"]
+    plain_summary: "The VPN is using NAT Traversal over UDP port 4500 to cross an intermediate router."
+    plain_impact: "Informational finding confirming normal network address translation operation."
+    plain_fix: "No remediation required; NAT Traversal is working as intended."
     params: {}
 

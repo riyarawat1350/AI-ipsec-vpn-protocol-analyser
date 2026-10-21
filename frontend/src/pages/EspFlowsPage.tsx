@@ -178,6 +178,14 @@ export const EspFlowsPage: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Flow Plain Language Story */}
+                <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800/80 text-xs text-slate-300 flex items-start gap-2.5 font-sans">
+                  <span className="text-sm">📖</span>
+                  <div className="leading-relaxed">
+                    {f.story || `${pkts} ${proto} packets sent from ${srcIp} to ${dstIp}, sequences ${minSeq} to ${maxSeq} with ${gaps} gap(s).`}
+                  </div>
+                </div>
+
                 {/* Flow Metrics Strip */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                   <div className="p-2.5 rounded-lg bg-slate-950/60 border border-slate-800/80">

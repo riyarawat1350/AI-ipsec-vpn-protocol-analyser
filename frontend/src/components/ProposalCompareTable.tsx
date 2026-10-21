@@ -65,7 +65,7 @@ export const ProposalCompareTable: React.FC<ProposalCompareTableProps> = ({
                     <td className="py-3 px-4 font-medium">{t.kind || t.type}</td>
                     <td className="py-3 px-4 font-bold text-white">{t.name}</td>
                     <td className="py-3 px-4 text-slate-400">
-                      {t.key_length ? `${t.key_length} bits` : 'Standard'}
+                      {t.key_length ? `${t.key_length} bits` : 'Fixed / Default'}
                     </td>
                     <td className="py-3 px-4">
                       {isWeak ? (
@@ -74,7 +74,7 @@ export const ProposalCompareTable: React.FC<ProposalCompareTableProps> = ({
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800/60 font-semibold">
-                          ✅ Approved Standards
+                          ✅ Observed Compliant
                         </span>
                       )}
                     </td>
@@ -102,7 +102,7 @@ export const ProposalCompareTable: React.FC<ProposalCompareTableProps> = ({
                     <td className="py-3 px-4 text-slate-400">{t.kind || t.type}</td>
                     <td className="py-3 px-4 text-slate-200">{t.name}</td>
                     <td className="py-3 px-4 text-slate-500">
-                      {t.key_length ? `${t.key_length} bits` : 'Standard'}
+                      {t.key_length ? `${t.key_length} bits` : 'Fixed / Default'}
                     </td>
                     <td className="py-3 px-4">
                       {isWeak ? (

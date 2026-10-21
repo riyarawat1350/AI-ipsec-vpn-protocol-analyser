@@ -7,6 +7,7 @@ displaying matched names labelled as "self-reported" or hex string if unknown.
 from __future__ import annotations
 
 from typing import Any
+
 from analyzer.ike.vendor_ids import lookup_vendor_id
 
 

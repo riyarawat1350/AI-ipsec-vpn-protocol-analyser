@@ -6,6 +6,7 @@ Extracts peer IPs, SPIs, Vendor IDs, and identities into structured IOC lists.
 from __future__ import annotations
 
 from typing import Any
+
 from analyzer.models import Facts, Finding
 
 

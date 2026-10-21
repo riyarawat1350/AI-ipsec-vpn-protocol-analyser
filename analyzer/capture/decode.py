@@ -145,16 +145,25 @@ class PacketDecoder:
         dport: int | None = None
         payload: bytes = l4_data
 
-        # Decode UDP (proto 17) if first fragment or unfragmented
-        if ip_proto == 17:
-            if frag_offset == 0 and len(l4_data) >= 8:
+        # Decode L4 transport headers.
+        # For fragmented packets, preserve full l4_data as payload so defragmenter
+        # can reassemble without artificial gaps.
+        if is_fragment:
+            payload = l4_data
+            if frag_offset == 0:
+                if ip_proto == 17 and len(l4_data) >= 4:
+                    sport, dport = struct.unpack(">HH", l4_data[:4])
+                elif ip_proto == 6 and len(l4_data) >= 4:
+                    sport, dport = struct.unpack(">HH", l4_data[:4])
+        elif ip_proto == 17:
+            if len(l4_data) >= 8:
                 sport, dport, udp_len = struct.unpack(">HHH", l4_data[:6])
                 payload_len = min(len(l4_data), udp_len) if udp_len >= 8 else len(l4_data)
                 payload = l4_data[8:payload_len]
             else:
                 payload = l4_data
         elif ip_proto == 6:  # TCP
-            if frag_offset == 0 and len(l4_data) >= 20:
+            if len(l4_data) >= 20:
                 sport, dport = struct.unpack(">HH", l4_data[:4])
                 tcp_hl = (l4_data[12] >> 4) * 4
                 if tcp_hl >= 20 and len(l4_data) >= tcp_hl:

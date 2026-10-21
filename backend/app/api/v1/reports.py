@@ -11,7 +11,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from pydantic import BaseModel
 
 from backend.app.core.errors import AppError
-from backend.app.db.mongo import Collections, get_db
+from backend.app.db.mongo import get_db
 from backend.app.deps import get_current_token
 from backend.app.services.reports import generate_report
 

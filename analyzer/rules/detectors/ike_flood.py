@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from typing import Any
+
 from analyzer.models import Evidence, Facts, RawFinding
 
 
@@ -19,7 +20,6 @@ def detect_ike_floods(
     """Detect IKE SA_INIT floods and missing COOKIE mitigation."""
     cfg = settings or {}
     rate_per_source = float(cfg.get("flood_rate_per_source", 50.0))
-    rate_aggregate = float(cfg.get("flood_rate_aggregate", 200.0))
     min_total_reqs = int(cfg.get("flood_min_requests", 100))
 
     findings: list[RawFinding] = []
@@ -109,9 +109,9 @@ def detect_ike_floods(
                                 ts=r["ts"],
                                 message="Full SA_INIT response without COOKIE challenge",
                                 field_path="message.notifies",
-                                raw_value=0,
-                                decoded="No COOKIE notify present",
-                                hex_excerpt="",
+                                raw_value="0 (no notifies)",
+                                decoded="No COOKIE notify present in SA_INIT response",
+                                hex_excerpt="00",
                                 note="Responder unmitigated under flood",
                             )
                             for r in replies[:5]

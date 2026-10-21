@@ -2,6 +2,7 @@
 
 import struct
 from dataclasses import dataclass, field
+
 from analyzer.models import DecodedPacket
 
 

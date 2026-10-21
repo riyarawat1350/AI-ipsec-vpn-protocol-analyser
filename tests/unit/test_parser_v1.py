@@ -6,14 +6,21 @@ import struct
 
 import pytest
 
-from analyzer.ike.parser_v1 import parse_ikev1, parse_ikev1_header, redact_identity
 from analyzer.ike.common import ParseError
+from analyzer.ike.parser_v1 import parse_ikev1, parse_ikev1_header, redact_identity
 from tests.fixtures.builders import (
-    IKEv1_MAIN, IKEv1_AGGRESSIVE,
-    PL_V1_SA, PL_V1_KE, PL_V1_ID, PL_V1_HASH, PL_V1_NONCE, PL_V1_NONE,
     FLAG_V1_ENCRYPTION,
-    build_ikev1_header, build_ikev1_sa_payload,
+    PL_V1_HASH,
+    PL_V1_ID,
+    PL_V1_KE,
+    PL_V1_NONCE,
+    PL_V1_NONE,
+    PL_V1_SA,
+    IKEv1_AGGRESSIVE,
+    IKEv1_MAIN,
     _wrap_payload,
+    build_ikev1_header,
+    build_ikev1_sa_payload,
 )
 
 
@@ -119,7 +126,7 @@ def test_aggressive_mode_id_and_hash():
     ]
     # Manual chain
     result = b""
-    for i, (ptype, body) in enumerate(payloads):
+    for i, (_ptype, body) in enumerate(payloads):
         nxt = payloads[i + 1][0] if i + 1 < len(payloads) else PL_V1_NONE
         result += _wrap_payload(nxt, body)
 
@@ -130,8 +137,8 @@ def test_aggressive_mode_id_and_hash():
     )
     msg = parse_ikev1(pkt)
     assert "Aggressive" in msg.exchange_name
-    assert getattr(msg, "v1_hash_len") == 20
-    v1_id = getattr(msg, "v1_id")
+    assert msg.v1_hash_len == 20
+    v1_id = msg.v1_id
     assert v1_id is not None
     assert v1_id["redacted"] is True
     assert "al***" in v1_id["value_preview"] or v1_id["value_preview"].startswith("al")

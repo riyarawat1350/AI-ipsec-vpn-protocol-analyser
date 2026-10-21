@@ -10,11 +10,11 @@ PHASE 1 REQUIREMENT:
 from __future__ import annotations
 
 import json
-from pathlib import Path
 import shutil
 import struct
 import subprocess
-from typing import Any, Dict, List, Optional, Tuple
+from pathlib import Path
+from typing import Any
 
 from scapy.utils import RawPcapNgReader, RawPcapReader
 
@@ -52,12 +52,15 @@ class IndependentDecoder:
         if is_pcapng:
             reader = RawPcapNgReader(str(self.path))
             for raw_data, pkt_info in reader:
-                link_type = pkt_info[2] if len(pkt_info) > 2 else 1
+                link_type = getattr(pkt_info, "linktype", 1)
                 frames.append((raw_data, link_type))
         else:
             reader = RawPcapReader(str(self.path))
             link_type = getattr(reader, "linktype", 1)
-            for raw_data, _ in reader:
+            for raw_data, pkt_info in reader:
+                caplen = getattr(pkt_info, "caplen", len(raw_data))
+                if len(raw_data) < caplen:
+                    break
                 frames.append((raw_data, link_type))
 
         protocol_counts = {
@@ -417,10 +420,10 @@ class IndependentDecoder:
             "-e", "ip.proto",
             "-e", "udp.srcport",
             "-e", "udp.dstport",
-            "-e", "isakmp.ispi",
-            "-e", "isakmp.rspi",
-            "-e", "isakmp.version",
-            "-e", "isakmp.exchange_type",
+            "-e", "ike.ispi",
+            "-e", "ike.rspi",
+            "-e", "ike.version",
+            "-e", "ike.exchangetype",
             "-e", "esp.spi",
             "-e", "esp.sequence",
         ]
@@ -429,13 +432,13 @@ class IndependentDecoder:
             if p.returncode != 0:
                 return {"error": p.stderr.strip()[:200]}
 
-            lines = [l for l in p.stdout.strip().splitlines() if l]
+            lines = [line_str for line_str in p.stdout.strip().splitlines() if line_str]
             ike_pkts = 0
             esp_pkts = 0
-            for l in lines:
-                parts = l.split("\t")
+            for line_str in lines:
+                parts = line_str.split("\t")
                 # parts: frame.num, ip.proto, srcport, dstport, ispi, rspi, ver, exch, esp.spi, esp.seq
-                if len(parts) >= 7 and parts[6]:  # isakmp.version present
+                if len(parts) >= 7 and parts[6]:  # ike.version present
                     ike_pkts += 1
                 if len(parts) >= 9 and parts[8]:  # esp.spi present
                     esp_pkts += 1

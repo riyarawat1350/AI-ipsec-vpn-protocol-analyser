@@ -5,20 +5,18 @@ IKE/ESP session reconstruction, rule evaluation, scoring, and posture assessment
 from __future__ import annotations
 
 import hashlib
-import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from analyzer.capture.reader import CaptureReader
 from analyzer.capture.decode import PacketDecoder
 from analyzer.capture.defrag import IPv4Defragmenter
+from analyzer.capture.reader import CaptureReader
 from analyzer.classify.classifier import ProtocolClassifier
 from analyzer.config import AnalyzerConfig
 from analyzer.enrich.iocs import extract_iocs
 from analyzer.errors import (
     FileTooLargeError,
-    PacketLimitError,
     UnsupportedFormatError,
 )
 from analyzer.esp.ah import parse_ah_header
@@ -32,10 +30,9 @@ from analyzer.ike.sessions import (
     IkeSessionReconstructor,
     ikemessage_to_model,
 )
-from analyzer.llm.narrator import generate_narrative, generate_template_narrative
+from analyzer.llm.narrator import generate_narrative
 from analyzer.models import (
     AnalysisResult,
-    Facts,
     Finding,
     RawFinding,
 )
@@ -55,6 +52,40 @@ ProgressCallback = Callable[[int, str], None]  # (percent, stage_name)
 
 def _noop_progress(pct: int, stage: str) -> None:
     pass
+
+
+_DETECTOR_PLAIN: dict[str, dict[str, str]] = {
+    "ESP-NULL-001": {
+        "plain_summary": "The VPN is transmitting packets with NULL encryption (zero payload encryption).",
+        "plain_impact": "User data, passwords, and sensitive files travel across the internet in plain readable text.",
+        "plain_fix": "Remove NULL encryption transforms and enforce AES-GCM or AES-CBC in IPsec child proposals.",
+    },
+    "ESP-SEQ-001": {
+        "plain_summary": "Severe sequence number gaps, duplicates, or packet reordering observed in ESP traffic.",
+        "plain_impact": "Packets are being dropped or delayed in transit, degrading tunnel throughput and risking replay attacks.",
+        "plain_fix": "Inspect intermediate routers for MTU clamping, verify anti-replay window sizing, and check interface errors.",
+    },
+    "ESP-NOIKE-001": {
+        "plain_summary": "ESP encrypted traffic observed without an accompanying IKE handshake.",
+        "plain_impact": "Informational finding; indicates manual static keying or that the key handshake occurred before capture started.",
+        "plain_fix": "Ensure capture covers tunnel initiation or verify automated IKE key management is active.",
+    },
+    "AH-001": {
+        "plain_summary": "The connection uses the legacy Authentication Header (AH) protocol.",
+        "plain_impact": "AH provides no encryption or privacy; all transmitted data can be read by any network observer.",
+        "plain_fix": "Migrate to ESP with authenticated encryption (AES-GCM) and disable AH.",
+    },
+    "IKE-RECON-001": {
+        "plain_summary": "Multiple repeated connection attempts to non-existent or varying endpoints detected.",
+        "plain_impact": "An adversary or scanner is systematically probing the network to discover active VPN gateways.",
+        "plain_fix": "Restrict UDP ports 500 and 4500 using edge firewall access lists to known peer addresses.",
+    },
+    "IKE-DOS-001": {
+        "plain_summary": "A high volume of IKE connection requests without completion was observed.",
+        "plain_impact": "Potential denial-of-service flood attempting to exhaust gateway memory and state tables.",
+        "plain_fix": "Enable statutory IKEv2 cookie challenges and rate-limit half-open SA handshakes.",
+    },
+}
 
 
 class Pipeline:
@@ -100,13 +131,23 @@ class Pipeline:
             if pkt is None:
                 continue
 
+            packet_count += 1
+            classifier.process(pkt)
+
+            if packet_count >= self.config.max_packets:
+                warnings.append(
+                    f"Packet limit ({self.config.max_packets}) reached. Remaining packets skipped."
+                )
+                break
+
+            if packet_count % 10000 == 0:
+                pct = min(50, 10 + int(packet_count / self.config.max_packets * 40))
+                self.progress(pct, "decoding_and_tracking")
+
             # Defragment
             result = defrag.process(pkt)
             if result is None:
                 continue
-
-            # Classify
-            classifier.process(result)
 
             # Deep inspect for IKE / ESP / AH
             payload = result.payload
@@ -188,29 +229,17 @@ class Pipeline:
             elif result.ip_proto == 51 and payload:
                 ah_parsed = parse_ah_header(payload)
                 if ah_parsed:
-                    spi, seq, inner = ah_parsed
-                    flow_tracker.process_esp(
+                    flow_tracker.process_ah(
                         src=result.src,
                         dst=result.dst,
-                        spi=spi,
-                        seq=seq,
+                        spi=ah_parsed.spi,
+                        seq=ah_parsed.seq,
                         pkt_no=frame.pkt_no,
                         ts=frame.ts,
                         packet_len=len(payload),
-                        payload_prefix=inner[:64],
+                        payload_prefix=ah_parsed.payload[:64],
                         encap="raw",
                     )
-
-            packet_count += 1
-            if packet_count >= self.config.max_packets:
-                warnings.append(
-                    f"Packet limit ({self.config.max_packets}) reached. Remaining packets skipped."
-                )
-                break
-
-            if packet_count % 10000 == 0:
-                pct = min(50, 10 + int(packet_count / self.config.max_packets * 40))
-                self.progress(pct, "decoding_and_tracking")
 
         warnings.extend(reader.metadata.warnings)
         warnings.extend(defrag.warnings)
@@ -275,11 +304,18 @@ class Pipeline:
         for rf in raw_findings:
             risk_score = calculate_risk(rf.impact, rf.likelihood, rf.confidence)
             sev = calculate_severity(risk_score, rf.impact, rf.override_severity)
+            if sev == "Info":
+                risk_score = None
 
             # Parameter fingerprint
             param_str = ",".join(f"{k}={v}" for k, v in sorted(rf.params.items()))
             fingerprint = hashlib.sha1(f"{rf.rule_id}|{param_str}".encode()).hexdigest()[:16]
             finding_id = f"f_{hashlib.sha256(f'{rf.rule_id}_{fingerprint}_{len(findings)}'.encode()).hexdigest()[:12]}"
+
+            # Plain language fields
+            p_summary = rf.plain_summary or _DETECTOR_PLAIN.get(rf.rule_id, {}).get("plain_summary") or rf.title
+            p_impact = rf.plain_impact or _DETECTOR_PLAIN.get(rf.rule_id, {}).get("plain_impact") or rf.why_this_matters
+            p_fix = rf.plain_fix or _DETECTOR_PLAIN.get(rf.rule_id, {}).get("plain_fix") or "Investigate and reconfigure the parameter according to security recommendations."
 
             findings.append(
                 Finding(
@@ -301,18 +337,22 @@ class Pipeline:
                     recommendation_id=rf.recommendation_id,
                     params=rf.params,
                     override_severity=rf.override_severity,
+                    plain_summary=p_summary,
+                    plain_impact=p_impact,
+                    plain_fix=p_fix,
                     risk_score=risk_score,
                     severity=sev,
                     scoring={
-                        "formula": f"{rf.impact}*{rf.likelihood}/25*100*(0.5+0.5*{rf.confidence})",
+                        "formula": f"{rf.impact}*{rf.likelihood}/25*100*(0.5+0.5*{rf.confidence})" if sev != "Info" else "not scored",
                         "overridden": bool(rf.override_severity),
+                        "not_scored": sev == "Info",
                     },
                     fingerprint=fingerprint,
                 )
             )
 
-        # Sort findings by risk score descending
-        findings.sort(key=lambda f: f.risk_score, reverse=True)
+        # Sort findings by risk score descending (Info findings with None at the end)
+        findings.sort(key=lambda f: f.risk_score if f.risk_score is not None else -1.0, reverse=True)
 
         # Compute posture
         posture = calculate_posture(findings)
@@ -324,7 +364,7 @@ class Pipeline:
         # Extract IOCs
         iocs = extract_iocs(facts, findings)
 
-        # Generate Narrative
+        # Generate Narrative and Phase 4 Explainable Story
         self.progress(96, "generating_narrative")
         enable_llm = bool(opts.get("enable_llm", False))
         narrative = generate_narrative(
@@ -335,6 +375,16 @@ class Pipeline:
             facts=facts,
             enable_llm=enable_llm,
         )
+
+        # Deterministic 5-point Report Card & Stories (Phase 4)
+        from analyzer.explain.engine import (
+            generate_esp_flow_story,
+            generate_ike_story,
+            generate_report_card,
+        )
+        narrative["report_card"] = generate_report_card(facts, findings, posture, recommendations)
+        narrative["ike_stories"] = {s.id: generate_ike_story(s) for s in facts.sessions}
+        narrative["esp_stories"] = {f.id: generate_esp_flow_story(f) for f in facts.flows}
 
         self.progress(100, "done")
 
@@ -353,7 +403,8 @@ class Pipeline:
             analyzer_version="0.1.0",
         )
 
-    def _validate_file(self, path: Path) -> None:
+    def _validate_file(self, path: Path | str) -> None:
+        path = Path(path)
         if not path.exists():
             raise FileNotFoundError(f"Capture file not found: {path}")
         if path.suffix.lower() not in (".pcap", ".pcapng"):

@@ -8,15 +8,14 @@ Acceptance criteria:
 from __future__ import annotations
 
 from pathlib import Path
-import pytest
 
-from analyzer.capture.reader import CaptureReader
 from analyzer.capture.decode import PacketDecoder
-from analyzer.ike.parser_v2 import parse_ikev2
-from analyzer.ike.sessions import reconstruct_ike_sessions, ikemessage_to_model
+from analyzer.capture.reader import CaptureReader
 from analyzer.features.facts import build_facts
-from analyzer.rules.loader import load_policy
+from analyzer.ike.parser_v2 import parse_ikev2
+from analyzer.ike.sessions import ikemessage_to_model, reconstruct_ike_sessions
 from analyzer.rules.engine import RuleEngine
+from analyzer.rules.loader import load_policy
 from analyzer.scoring.risk import calculate_risk
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures" / "pcap"

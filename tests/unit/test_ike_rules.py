@@ -15,9 +15,9 @@ Verifies:
 from __future__ import annotations
 
 import pytest
-from pathlib import Path
+
 from analyzer.features.facts import build_facts
-from analyzer.models import Endpoint, IkeMessage, IkeProposal, IkeSession, IkeTransform, Observation
+from analyzer.models import Endpoint, IkeSession, Observation
 from analyzer.rules.engine import RuleEngine
 from analyzer.rules.loader import load_policy
 from analyzer.scoring.risk import calculate_risk, calculate_severity

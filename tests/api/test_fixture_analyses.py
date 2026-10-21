@@ -1,7 +1,9 @@
 """Automated tests for F01, F02, F10, F13 fixture lifecycles, PDF reports, and failure cases (Task 8)."""
 
 from pathlib import Path
+
 import pytest
+
 from analyzer.config import AnalyzerConfig
 from analyzer.pipeline import Pipeline
 from backend.app.services.reports import _build_pdf_report

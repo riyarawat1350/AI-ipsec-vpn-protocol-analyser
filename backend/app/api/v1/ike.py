@@ -79,7 +79,11 @@ async def get_ike_session_detail(
     })
     findings = await findings_cursor.to_list(length=100)
 
+    from analyzer.explain.engine import generate_ike_story
     from analyzer.ike.vendor_ids import decode_vendor_id
+
+    # Plain handshake story
+    session["story"] = generate_ike_story(session)
 
     # Enrich vendor IDs
     if "vendor_ids" in session:
@@ -97,6 +101,7 @@ async def get_ike_session_detail(
 
     return {
         "session": session,
+        "story": session["story"],
         "messages": messages or session.get("messages", []),
         "findings": findings,
     }

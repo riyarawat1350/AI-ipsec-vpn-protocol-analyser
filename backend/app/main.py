@@ -4,9 +4,6 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
-
-load_dotenv()
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -14,6 +11,7 @@ from backend.app.api.v1.analyses import router as analyses_router
 from backend.app.api.v1.compare import router as compare_router
 from backend.app.api.v1.esp import router as esp_router
 from backend.app.api.v1.findings import router as findings_router
+from backend.app.api.v1.glossary import router as glossary_router
 from backend.app.api.v1.ike import router as ike_router
 from backend.app.api.v1.meta import router as meta_router
 from backend.app.api.v1.policies import router as policies_router
@@ -23,6 +21,8 @@ from backend.app.core.errors import register_exception_handlers
 from backend.app.core.logging import setup_logging
 from backend.app.core.security import SecurityHeadersMiddleware
 from backend.app.db.mongo import close_db, connect_db
+
+load_dotenv()
 
 
 @asynccontextmanager
@@ -68,6 +68,7 @@ def create_app() -> FastAPI:
     app.include_router(compare_router, prefix="/api/v1")
     app.include_router(reports_router, prefix="/api/v1")
     app.include_router(policies_router, prefix="/api/v1")
+    app.include_router(glossary_router, prefix="/api/v1")
 
     # Root convenience endpoints (SRS §9.1 endpoints 23 & 24)
     @app.get("/health", tags=["Root"])

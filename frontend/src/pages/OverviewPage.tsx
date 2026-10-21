@@ -4,6 +4,7 @@ import { fetchOverview } from '../api/client';
 import { PostureGauge } from '../components/PostureGauge';
 import { SeverityBadge } from '../components/SeverityBadge';
 import { AnalysisNav } from '../components/AnalysisNav';
+import { Term } from '../components/Term';
 import { Info } from 'lucide-react';
 
 export const OverviewPage: React.FC = () => {
@@ -57,6 +58,18 @@ export const OverviewPage: React.FC = () => {
     (ipsec.esp_flows || 0) === 0 &&
     (ipsec.ah_flows || 0) === 0;
 
+  const reportCard = data.narrative?.report_card || {
+    what_we_saw: `Observed ${cap.total_packets?.toLocaleString() || 0} packets (${((cap.total_bytes || 0) / 1024).toFixed(1)} KB) spanning ${(cap.duration_seconds || 0).toFixed(1)}s. Found ${(ipsec.ike_v1_sessions || 0) + (ipsec.ike_v2_sessions || 0)} IKE handshake sessions and ${ipsec.esp_flows || 0} ESP flows.`,
+    what_we_found: `Identified ${counts.Critical || 0} critical, ${counts.High || 0} high, ${counts.Medium || 0} medium, and ${counts.Low || 0} low issues.`,
+    how_worried: (counts.Critical || 0) > 0
+      ? "Immediate action recommended. Critical vulnerabilities allow eavesdropping or decryption of VPN traffic."
+      : (counts.High || 0) > 0
+      ? "High operational concern. Deprecated algorithms or key exchange parameters are in use."
+      : "Low operational concern. Cryptographic parameters conform to baseline standards.",
+    what_to_do_first: "Open the Fix-First action list and upgrade identified weak algorithms to recommended suites.",
+    limitations: "Encrypted payload contents and traffic inside established ESP tunnels cannot be observed without cryptographic keys.",
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
       <AnalysisNav />
@@ -67,7 +80,7 @@ export const OverviewPage: React.FC = () => {
           <div className="space-y-1">
             <div className="font-bold text-amber-300 text-sm">Notice: No IPsec VPN Traffic Detected in Capture</div>
             <p className="leading-relaxed">
-              This capture contains <strong>{cap.total_packets?.toLocaleString()}</strong> packets, but no IKE (ISAKMP) negotiations, ESP flows, or AH packets were identified. The traffic appears to consist of non-IPsec protocols (such as TCP/IPv6/HTTPS web traffic). Since no IPsec security associations or tunnels were present, no protocol vulnerabilities were evaluated.
+              This capture contains <strong>{cap.total_packets?.toLocaleString()}</strong> packets, but no <Term id="ike">IKE</Term> negotiations, <Term id="esp">ESP</Term> flows, or <Term id="ah">AH</Term> packets were identified. The traffic appears to consist of non-IPsec protocols. Since no <Term id="sa">security associations</Term> or tunnels were present, no protocol vulnerabilities were evaluated.
             </p>
           </div>
         </div>
@@ -105,6 +118,78 @@ export const OverviewPage: React.FC = () => {
         </div>
       </div>
 
+      {/* 5-Point Deterministic Security Report Card */}
+      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">📋</span>
+            <h2 className="text-base font-bold text-white">
+              Security Report Card <span className="text-xs font-normal text-slate-400 font-mono ml-2">(Plain English)</span>
+            </h2>
+          </div>
+          <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-sky-950 text-sky-300 border border-sky-800/80">
+            Deterministic Evaluation
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 text-xs">
+          {/* 1. What we saw */}
+          <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800/80 space-y-2">
+            <div className="flex items-center gap-1.5 font-bold text-slate-200">
+              <span className="w-5 h-5 rounded-full bg-slate-800 text-sky-400 flex items-center justify-center text-[11px]">1</span>
+              <span>What We Saw</span>
+            </div>
+            <p className="text-slate-300 leading-relaxed text-[11px]">
+              {reportCard.what_we_saw}
+            </p>
+          </div>
+
+          {/* 2. What we found */}
+          <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800/80 space-y-2">
+            <div className="flex items-center gap-1.5 font-bold text-slate-200">
+              <span className="w-5 h-5 rounded-full bg-slate-800 text-sky-400 flex items-center justify-center text-[11px]">2</span>
+              <span>What We Found</span>
+            </div>
+            <p className="text-slate-300 leading-relaxed text-[11px]">
+              {reportCard.what_we_found}
+            </p>
+          </div>
+
+          {/* 3. How worried */}
+          <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800/80 space-y-2">
+            <div className="flex items-center gap-1.5 font-bold text-slate-200">
+              <span className="w-5 h-5 rounded-full bg-slate-800 text-sky-400 flex items-center justify-center text-[11px]">3</span>
+              <span>Concern Level</span>
+            </div>
+            <p className="text-slate-300 leading-relaxed text-[11px]">
+              {reportCard.how_worried}
+            </p>
+          </div>
+
+          {/* 4. What to do first */}
+          <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800/80 space-y-2">
+            <div className="flex items-center gap-1.5 font-bold text-slate-200">
+              <span className="w-5 h-5 rounded-full bg-slate-800 text-sky-400 flex items-center justify-center text-[11px]">4</span>
+              <span>Action First</span>
+            </div>
+            <p className="text-slate-300 leading-relaxed text-[11px]">
+              {reportCard.what_to_do_first}
+            </p>
+          </div>
+
+          {/* 5. Limitations */}
+          <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800/80 space-y-2">
+            <div className="flex items-center gap-1.5 font-bold text-amber-300">
+              <span className="w-5 h-5 rounded-full bg-amber-950 text-amber-400 flex items-center justify-center text-[11px]">5</span>
+              <span>Limitations</span>
+            </div>
+            <p className="text-slate-400 leading-relaxed text-[11px]">
+              {reportCard.limitations}
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Main Grid: Score Gauge + Executive Narrative */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Posture Score Card */}
@@ -114,7 +199,7 @@ export const OverviewPage: React.FC = () => {
           </h2>
           <PostureGauge score={score} grade={grade} size={200} />
           <div className="text-xs text-slate-500 text-center mt-2 px-4">
-            Ground truth: NIST SP 800-77 Rev. 1 & RFC 8247 baseline policy
+            Policy baseline: NIST SP 800-77 Rev. 1 & RFC 8247 baseline policy
           </div>
         </div>
 

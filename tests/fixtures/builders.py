@@ -69,7 +69,7 @@ def _chain_payloads(payloads: list[tuple[int, bytes]]) -> tuple[int, bytes]:
     if not payloads:
         return PL_NONE, b""
     result = b""
-    for i, (ptype, body) in enumerate(payloads):
+    for i, (_ptype, body) in enumerate(payloads):
         next_type = payloads[i + 1][0] if i + 1 < len(payloads) else PL_NONE
         result += _wrap_payload(next_type, body)
     return payloads[0][0], result
@@ -137,12 +137,8 @@ def build_ikev2_proposal(
         fixed_transforms.append(bytes([more]) + t[1:])
     transform_data = b"".join(fixed_transforms)
 
-    # SPI size 0 for IKE proposals
-    spi_size = 0
-    body = struct.pack(">BBBBH",
-        proposal_num, protocol_id, spi_size, len(transforms), 0
-    )
     # redo: last(1), reserved(1), proposal_len(2), proposal_num(1), proto_id(1), spi_size(1), num_transforms(1)
+    spi_size = 0
     total = 8 + len(transform_data)
     last_more = 0
     return struct.pack(">BBH BBBB",

@@ -8,7 +8,13 @@ discrete Observation models for the declarative rules engine.
 from __future__ import annotations
 
 from typing import Any, Literal
-from analyzer.classify.classifier import ClassifierResult, PortStats, TalkerStats
+
+from analyzer.classify.classifier import (
+    ClassifierResult,
+    ConversationStats,
+    PortStats,
+    TalkerStats,
+)
 from analyzer.models import Facts, IkeSession, IpsecFlow, Observation
 
 # Mapping from transform kind uppercase to Observation kind lowercase

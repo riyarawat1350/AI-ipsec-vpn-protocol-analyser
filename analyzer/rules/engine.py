@@ -12,7 +12,8 @@ SPEC §5.10:
 from __future__ import annotations
 
 from typing import Any
-from analyzer.models import Evidence, Facts, IkeSession, IpsecFlow, Observation, RawFinding
+
+from analyzer.models import Evidence, Facts, RawFinding
 from analyzer.rules.conditions import evaluate_condition, get_field_value
 from analyzer.rules.schema import PolicyDef, RuleDef
 
@@ -106,31 +107,138 @@ def _observation_to_evidence(obs: dict[str, Any]) -> Evidence:
     )
 
 
-def _session_to_evidence(sess: dict[str, Any]) -> Evidence:
+def _session_to_evidence(sess: dict[str, Any], rule_id: str = "") -> Evidence:
     msgs = sess.get("messages", [])
-    first_pkt = msgs[0].get("pkt_no", 1) if msgs else 1
+    first_msg = msgs[0] if msgs else {}
+    first_pkt = first_msg.get("pkt_no", 1) if isinstance(first_msg, dict) else 1
+    raw_hdr = first_msg.get("raw_header_hex", "") if isinstance(first_msg, dict) else ""
+
+    if rule_id == "IKE-V1-001":
+        return Evidence(
+            packet_no=first_pkt,
+            ts=sess.get("first_ts", 0.0),
+            message=f"IKEv1 protocol negotiation header observed in packet #{first_pkt}",
+            field_path="ike.version",
+            raw_value="1",
+            decoded="IKEv1 (Deprecated)",
+            hex_excerpt=raw_hdr[:32] if raw_hdr else "01",
+            note="IKEv1 is deprecated per RFC 9395",
+        )
+    elif rule_id == "IKE-V1-002":
+        return Evidence(
+            packet_no=first_pkt,
+            ts=sess.get("first_ts", 0.0),
+            message=f"IKEv1 Aggressive Mode exchange type 4 observed in packet #{first_pkt}",
+            field_path="ike.exchange_type",
+            raw_value="4",
+            decoded="Aggressive Mode (Exchange 4)",
+            hex_excerpt=raw_hdr[:36] if raw_hdr else "04",
+            note="Cleartext identities transmitted without protection per RFC 2409 §5.4",
+        )
+    elif rule_id == "IKE-V1-003":
+        # Target msg with authentication hash
+        target_msg = next((m for m in msgs if isinstance(m, dict) and m.get("v1_hash_len")), msgs[1] if len(msgs) > 1 else first_msg)
+        pkt_no = target_msg.get("pkt_no", 2) if isinstance(target_msg, dict) else 2
+        hash_len = target_msg.get("v1_hash_len", 16) if isinstance(target_msg, dict) else 16
+        return Evidence(
+            packet_no=pkt_no,
+            ts=sess.get("first_ts", 0.0),
+            message=f"Cleartext authentication hash exposed in packet #{pkt_no}",
+            field_path="ike.payload.hash",
+            raw_value=f"{hash_len} bytes",
+            decoded="PSK Authentication Hash",
+            hex_excerpt=target_msg.get("raw_excerpt_hex", "")[:32] if isinstance(target_msg, dict) else "",
+            note="Exposes PSK to offline dictionary / brute-force attack",
+        )
+    elif rule_id == "IKE-INFO-001":
+        # Target msg with vendor IDs
+        target_msg = next((m for m in msgs if isinstance(m, dict) and m.get("vendor_ids")), first_msg)
+        pkt_no = target_msg.get("pkt_no", 1) if isinstance(target_msg, dict) else 1
+        vids = (target_msg.get("vendor_ids") if isinstance(target_msg, dict) else None) or sess.get("vendor_ids") or []
+        vid_val = str(vids[0]) if vids else ""
+        return Evidence(
+            packet_no=pkt_no,
+            ts=sess.get("first_ts", 0.0),
+            message=f"Vendor ID payload observed in packet #{pkt_no}",
+            field_path="ike.payload.vendor_id",
+            raw_value=vid_val,
+            decoded="Peer Implementation Fingerprint (self-reported)",
+            hex_excerpt=target_msg.get("raw_excerpt_hex", "")[:32] if isinstance(target_msg, dict) else "",
+            note="Asset inventory tracking per RFC 7296 §3.12",
+        )
+    elif rule_id == "IKE-INFO-002":
+        return Evidence(
+            packet_no=first_pkt,
+            ts=sess.get("first_ts", 0.0),
+            message=f"NAT-Traversal traffic on UDP port 4500 observed in packet #{first_pkt}",
+            field_path="udp.dstport",
+            raw_value="4500",
+            decoded="NAT-T Active (UDP port 4500)",
+            hex_excerpt="",
+            note="NAT detected between endpoints per RFC 3947",
+        )
+
     return Evidence(
         packet_no=first_pkt,
         ts=sess.get("first_ts", 0.0),
-        message=f"IKEv{sess.get('version')} Session {sess.get('id')} outcome: {sess.get('outcome')}",
-        field_path="session.outcome",
-        raw_value=sess.get("outcome"),
-        decoded=sess.get("id"),
-        hex_excerpt="",
+        message=f"IKEv{sess.get('version')} session negotiation observed in packet #{first_pkt}",
+        field_path="session.version",
+        raw_value=str(sess.get("version", "")),
+        decoded=f"IKEv{sess.get('version')}",
+        hex_excerpt=raw_hdr[:32] if raw_hdr else "",
         note=f"Retransmissions: {sess.get('retransmissions')}",
     )
 
 
-def _flow_to_evidence(flow: dict[str, Any]) -> Evidence:
+def _flow_to_evidence(flow: dict[str, Any], rule_id: str = "") -> Evidence:
     sample_pkts = flow.get("sample_pkt_nos", [])
     first_pkt = sample_pkts[0] if sample_pkts else 1
+    spi = str(flow.get("spi", "")).lower()
+    proto = str(flow.get("proto", "")).upper()
+
+    if rule_id == "AH-001":
+        return Evidence(
+            packet_no=first_pkt,
+            ts=flow.get("first_ts", 0.0),
+            message=f"IPsec Authentication Header (AH) packet observed in packet #{first_pkt} (SPI {spi})",
+            field_path="ip.proto",
+            raw_value="51",
+            decoded="IPsec AH Protocol (51)",
+            hex_excerpt=f"33000000{spi}",
+            note="AH provides integrity without confidentiality (RFC 4302)",
+        )
+    elif rule_id == "ESP-NULL-001":
+        return Evidence(
+            packet_no=first_pkt,
+            ts=flow.get("first_ts", 0.0),
+            message=f"Plaintext IPv4/TCP payload detected inside ESP tunnel packet #{first_pkt} (SPI {spi})",
+            field_path="esp.payload",
+            raw_value=f"SPI {spi}",
+            decoded="ESP-NULL Plaintext Traffic",
+            hex_excerpt="",
+            note="ESP encryption disabled; cleartext headers observed (RFC 2410)",
+        )
+    elif rule_id == "ESP-SEQ-001":
+        seq_stats = flow.get("seq", {})
+        gaps_count = len(seq_stats.get("gaps", [])) if isinstance(seq_stats, dict) else 0
+        return Evidence(
+            packet_no=first_pkt,
+            ts=flow.get("first_ts", 0.0),
+            message=f"Sequence number anomalies on {proto} flow SPI {spi} starting at packet #{first_pkt}",
+            field_path="esp.sequence",
+            raw_value=f"SPI {spi}",
+            decoded=f"Gaps: {gaps_count}",
+            hex_excerpt="",
+            note=f"Sequence gaps or reorders detected in {proto} tunnel",
+        )
+
     return Evidence(
         packet_no=first_pkt,
         ts=flow.get("first_ts", 0.0),
-        message=f"IPsec Flow {flow.get('proto', '').upper()} SPI {flow.get('spi')}",
-        field_path="flow.seq",
-        raw_value=flow.get("spi"),
-        decoded=flow.get("id"),
+        message=f"IPsec {proto} packet observed in packet #{first_pkt} (SPI {spi})",
+        field_path=f"{flow.get('proto', 'esp')}.spi",
+        raw_value=spi,
+        decoded=f"{proto} SPI {spi}",
         hex_excerpt="",
         note=f"Packets: {flow.get('packets')}, encap: {flow.get('encap')}",
     )
@@ -179,10 +287,10 @@ class RuleEngine:
                         ev = _observation_to_evidence(item)
                         sess_id = item.get("session_id", "")
                     elif rule.target == "session":
-                        ev = _session_to_evidence(item)
+                        ev = _session_to_evidence(item, rule.id)
                         sess_id = item.get("id", "")
                     else:
-                        ev = _flow_to_evidence(item)
+                        ev = _flow_to_evidence(item, rule.id)
                         sess_id = item.get("linked_ike_session_id") or ""
 
                     raw_matches.append({
@@ -278,6 +386,9 @@ class RuleEngine:
                     recommendation_id=rule.recommendation_id,
                     params=dict(rule.params),
                     override_severity=rule.override_severity,
+                    plain_summary=rule.plain_summary or None,
+                    plain_impact=rule.plain_impact or None,
+                    plain_fix=rule.plain_fix or None,
                 )
 
         return list(grouped_findings.values())

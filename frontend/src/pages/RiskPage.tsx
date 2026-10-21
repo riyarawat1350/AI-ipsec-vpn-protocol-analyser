@@ -170,7 +170,9 @@ export const RiskPage: React.FC = () => {
           <h2 className="text-sm font-bold text-white flex items-center gap-2">
             <Layers className="w-4 h-4 text-sky-400" /> Cumulative Finding Multiplier Audit
           </h2>
-          <span className="text-xs text-slate-500 font-mono">{findings.length} findings evaluated</span>
+          <span className="text-xs text-slate-500 font-mono">
+            {findings.length} {findings.length === 1 ? 'finding' : 'findings'} evaluated
+          </span>
         </div>
 
         {findings.length === 0 ? (

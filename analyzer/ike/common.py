@@ -6,7 +6,6 @@ import struct
 from dataclasses import dataclass, field
 from typing import Any
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # IKE message data models
 # ─────────────────────────────────────────────────────────────────────────────

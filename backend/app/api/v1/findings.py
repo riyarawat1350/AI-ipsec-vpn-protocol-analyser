@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from fastapi import APIRouter, Depends, Query
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -80,7 +80,7 @@ async def get_finding_detail(
     if not finding:
         raise AppError(code="NOT_FOUND", message=f"Finding '{fid}' not found.", status_code=404)
 
-    return finding
+    return cast(dict[str, Any], finding)
 
 
 @router.get("/recommendations")

@@ -7,8 +7,9 @@ from the actual decoded packets.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from collections import defaultdict
+from dataclasses import dataclass, field
+
 from analyzer.models import DecodedPacket
 
 # ---------------------------------------------------------------------------
@@ -238,7 +239,8 @@ class ProtocolClassifier:
 
             # Plain IKE on port 500
             if sport == IKE_PORT or dport == IKE_PORT:
-                return self._classify_ike(pkt.payload)
+                p_data = pkt.payload[8:] if (pkt.is_fragment and pkt.frag_offset == 0) else pkt.payload
+                return self._classify_ike(p_data)
 
             return Protocol.OTHER_UDP
 

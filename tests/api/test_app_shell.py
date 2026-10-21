@@ -5,17 +5,14 @@ MongoDB lifespan is overridden via a mock so tests don't require a live Atlas co
 
 from __future__ import annotations
 
-import pytest
-from contextlib import asynccontextmanager
-from collections.abc import AsyncGenerator
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from fastapi import APIRouter, Depends
 from fastapi.testclient import TestClient
 
 from backend.app.config import settings
 from backend.app.deps import verify_api_token
-
 
 # ---------------------------------------------------------------------------
 # Fixture: mock the MongoDB lifespan so tests are self-contained

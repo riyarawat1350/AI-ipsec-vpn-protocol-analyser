@@ -8,7 +8,7 @@ Unknown VIDs are displayed as hex only.
 from __future__ import annotations
 
 import hashlib
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 
 class VendorMatch(NamedTuple):

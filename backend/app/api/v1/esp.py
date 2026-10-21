@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from fastapi import APIRouter, Depends, Query
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -42,6 +42,12 @@ async def list_ipsec_flows(
     items = await cursor.to_list(length=page_size)
     total = await col.count_documents(query)
 
+    from analyzer.explain.engine import generate_esp_flow_story
+
+    for item in items:
+        if "story" not in item:
+            item["story"] = generate_esp_flow_story(item)
+
     return {
         "items": items,
         "total": total,
@@ -66,4 +72,8 @@ async def get_flow_detail(
     if not flow:
         raise AppError(code="NOT_FOUND", message=f"Flow '{fid}' not found.", status_code=404)
 
-    return flow
+    from analyzer.explain.engine import generate_esp_flow_story
+    if "story" not in flow:
+        flow["story"] = generate_esp_flow_story(flow)
+
+    return cast(dict[str, Any], flow)

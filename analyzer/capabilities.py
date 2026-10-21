@@ -204,6 +204,27 @@ CAPABILITIES_REGISTRY: list[CapabilityEntry] = [
         priority="F",
         notes="Key-assisted decryption of IKE_AUTH or ESP payloads is out of scope for passive analyzer baseline.",
     ),
+    CapabilityEntry(
+        id="FR-88",
+        feature="Plain language explanations and comprehensive glossary",
+        status="implemented",
+        priority="M",
+        notes="Comprehensive glossary with 75 terms, simple <=25-word definitions, analogies, and Term component popovers.",
+    ),
+    CapabilityEntry(
+        id="FR-89",
+        feature="Deterministic 5-point report card",
+        status="implemented",
+        priority="M",
+        notes="Non-LLM deterministic 5-point report card covering observations, findings, worry level, fix actions, and observability limits.",
+    ),
+    CapabilityEntry(
+        id="FR-90",
+        feature="Automated independent verification suite",
+        status="implemented",
+        priority="M",
+        notes="Four-phase automated verification suite covering independent struct decoding, rule ground truth, cross-screen consistency, and plain-language readability.",
+    ),
 ]
 
 

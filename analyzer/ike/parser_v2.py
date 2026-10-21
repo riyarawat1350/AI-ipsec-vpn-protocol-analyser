@@ -10,16 +10,22 @@ exceptions.  SK payloads are marked as encrypted and not further decoded.
 from __future__ import annotations
 
 import struct
-from dataclasses import dataclass, field
 
 from analyzer.ike.common import (
-    IKEMessage, IKEPayload, IKEProposal, IKETransform,
-    ParseError, hex_spi, iter_payloads, protocol_name, safe_unpack,
+    IKEMessage,
+    IKEPayload,
+    IKEProposal,
+    IKETransform,
+    ParseError,
+    hex_spi,
+    iter_payloads,
+    protocol_name,
 )
 from analyzer.ike.constants import (
-    encr_name, prf_name, integ_name, dh_name, notify_name,
-    ikev2_exchange_name, payload_name, transform_type_name, transform_name,
-    is_aead,
+    ikev2_exchange_name,
+    notify_name,
+    payload_name,
+    transform_name,
 )
 
 # IKEv2 flag bits (RFC 7296 §3.1)

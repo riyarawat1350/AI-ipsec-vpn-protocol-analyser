@@ -220,13 +220,16 @@ class RawFinding(BaseModel):
     recommendation_id: str | None = None
     params: dict[str, Any] = Field(default_factory=dict)
     override_severity: str | None = None
+    plain_summary: str | None = None
+    plain_impact: str | None = None
+    plain_fix: str | None = None
 
 
 class Finding(RawFinding):
     """Scored security finding with risk score and fingerprint."""
 
     id: str
-    risk_score: float
+    risk_score: float | None = None
     severity: str
     scoring: dict[str, Any] = Field(default_factory=dict)
     fingerprint: str

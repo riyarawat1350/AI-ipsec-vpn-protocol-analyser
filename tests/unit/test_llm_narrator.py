@@ -12,12 +12,13 @@ from __future__ import annotations
 
 import json
 import os
+
 import pytest
 from dotenv import load_dotenv
 
-from analyzer.llm.narrator import generate_narrative, generate_template_narrative
+from analyzer.llm.narrator import generate_narrative
 from analyzer.llm.providers import FakeLLMProvider, OpenAICompatProvider
-from analyzer.llm.validate import sanitize_prompt_payload, validate_llm_output
+from analyzer.llm.validate import sanitize_prompt_payload
 from analyzer.models import Evidence, Finding
 
 load_dotenv()

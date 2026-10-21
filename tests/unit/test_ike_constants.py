@@ -3,13 +3,21 @@
 from __future__ import annotations
 
 import pytest
-from analyzer.ike.constants import (
-    encr_name, prf_name, integ_name, dh_name, notify_name,
-    ikev2_exchange_name, ikev1_exchange_name, transform_name,
-    is_aead, expected_ke_size, is_weak_dh, AEAD_ENCR_IDS, WEAK_DH_GROUPS,
-)
-from analyzer.ike.common import iter_payloads, hex_spi, safe_unpack, ParseError
 
+from analyzer.ike.common import ParseError, hex_spi, iter_payloads, safe_unpack
+from analyzer.ike.constants import (
+    dh_name,
+    encr_name,
+    expected_ke_size,
+    ikev1_exchange_name,
+    ikev2_exchange_name,
+    integ_name,
+    is_aead,
+    is_weak_dh,
+    notify_name,
+    prf_name,
+    transform_name,
+)
 
 # ── Name lookup tests ──────────────────────────────────────────────────────
 

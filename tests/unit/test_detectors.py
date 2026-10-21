@@ -10,9 +10,8 @@ Tests:
 
 from __future__ import annotations
 
-import pytest
 from analyzer.features.facts import build_facts
-from analyzer.models import Endpoint, IkeMessage, IkeNotify, IkeProposal, IkeSession, IkeTransform
+from analyzer.models import Endpoint, IkeMessage, IkeNotify, IkeProposal, IkeSession
 from analyzer.rules.detectors.ike_flood import detect_ike_floods
 from analyzer.rules.detectors.ike_scan import detect_ike_scans
 from analyzer.rules.detectors.negotiation import detect_negotiation_anomalies

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any
+
 from fastapi import APIRouter, Depends
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pydantic import BaseModel

@@ -10,12 +10,12 @@ import json
 import shutil
 import subprocess
 from pathlib import Path
+
 import pytest
 
-from analyzer.capture.reader import CaptureReader
 from analyzer.capture.decode import PacketDecoder
+from analyzer.capture.reader import CaptureReader
 from analyzer.ike.parser_v2 import parse_ikev2
-from analyzer.ike.parser_v1 import parse_ikev1
 
 TSHARK_BIN = shutil.which("tshark")
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures" / "pcap"

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any
+
 from fastapi import APIRouter, Depends, Query
 
 from analyzer.rules.loader import get_available_policies, load_policy

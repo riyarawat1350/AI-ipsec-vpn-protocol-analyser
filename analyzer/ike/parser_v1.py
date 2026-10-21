@@ -13,12 +13,23 @@ import struct
 from typing import Any
 
 from analyzer.ike.common import (
-    IKEMessage, IKEPayload, IKEProposal, IKETransform,
-    ParseError, hex_spi, iter_payloads, protocol_name,
+    IKEMessage,
+    IKEPayload,
+    IKEProposal,
+    IKETransform,
+    ParseError,
+    hex_spi,
+    iter_payloads,
+    protocol_name,
 )
 from analyzer.ike.constants import (
-    IKEv1_AUTH, IKEv1_ENCR, IKEv1_HASH, IKEv1_LIFE_TYPE,
-    dh_name, ikev1_exchange_name, payload_name,
+    IKEv1_AUTH,
+    IKEv1_ENCR,
+    IKEv1_HASH,
+    IKEv1_LIFE_TYPE,
+    dh_name,
+    ikev1_exchange_name,
+    payload_name,
 )
 
 # IKEv1 flag bits (RFC 2408)

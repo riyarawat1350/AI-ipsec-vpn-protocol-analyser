@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 from pathlib import Path
-import pytest
 
-from analyzer.capture.reader import CaptureReader
 from analyzer.capture.decode import PacketDecoder
+from analyzer.capture.reader import CaptureReader
+from analyzer.esp.linking import link_flows_to_ike_sessions, pair_flows
+from analyzer.esp.tracker import FlowTracker, parse_esp_packet
 from analyzer.ike.parser_v2 import parse_ikev2
 from analyzer.ike.sessions import IkeSessionReconstructor, ikemessage_to_model
-from analyzer.esp.tracker import FlowTracker, parse_esp_packet
-from analyzer.esp.linking import pair_flows, link_flows_to_ike_sessions
 from analyzer.models import Endpoint, FlowSeqStats, IkeSession, IpsecFlow
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures" / "pcap"

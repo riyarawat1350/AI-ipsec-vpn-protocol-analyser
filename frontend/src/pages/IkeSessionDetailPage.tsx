@@ -4,7 +4,6 @@ import { fetchIkeSession } from '../api/client';
 import { AnalysisNav } from '../components/AnalysisNav';
 import { HandshakeLadder } from '../components/HandshakeLadder';
 import { ProposalCompareTable } from '../components/ProposalCompareTable';
-import { parseVendorId } from '../utils/formatters';
 import { ArrowLeft, ShieldCheck, ShieldAlert, EyeOff } from 'lucide-react';
 
 export const IkeSessionDetailPage: React.FC = () => {
@@ -67,9 +66,42 @@ export const IkeSessionDetailPage: React.FC = () => {
   }));
   const offered = session.offered || session.offered_proposals || session.proposals || [];
   const selected = session.selected || session.selected_proposal || null;
-  const vendorIds = session.vendor_ids || [];
-  const notifies = session.notifies || [];
+  const vendorIds = (session.vendor_ids && session.vendor_ids.length > 0)
+    ? session.vendor_ids
+    : (session.messages || []).flatMap((m: any) => m.vendor_ids || []);
+  const sessionNotifies = session.notifies || [];
+  const messageNotifies = (session.messages || []).flatMap((m: any) =>
+    (m.notifies || []).map((n: any) => ({ ...n, message_id: m.message_id }))
+  );
+  const notifies = sessionNotifies.length > 0 ? sessionNotifies : messageNotifies;
 
+  const tryDecodeHexAscii = (hexStr: string): string | null => {
+    if (!hexStr || hexStr.length % 2 !== 0) return null;
+    try {
+      let ascii = '';
+      for (let i = 0; i < hexStr.length; i += 2) {
+        const code = parseInt(hexStr.substr(i, 2), 16);
+        if (code >= 32 && code <= 126) {
+          ascii += String.fromCharCode(code);
+        } else {
+          return null;
+        }
+      }
+      return ascii.length >= 3 ? ascii : null;
+    } catch {
+      return null;
+    }
+  };
+
+
+  const storySteps: string[] = session.story && session.story.length > 0
+    ? session.story
+    : [
+        `Initiator ${initIp}:${initPort} began negotiation with Responder ${respIp}:${respPort} using IKEv${session.version || 2}.`,
+        offered.length > 0 ? `Initiator proposed ${offered.length} cryptographic security association proposal(s).` : `Security proposals were submitted for cryptographic negotiation.`,
+        selected ? `Both parties agreed on negotiated proposal: ${selected.encryption || 'AES'} cipher with ${selected.prf || selected.integrity || 'SHA256'} and DH group ${selected.dh_group || selected.dh || '14'}.` : `Negotiation completed.`,
+        isEst ? `The IKE session was successfully established.` : `Handshake did not complete observed establishment.`
+      ];
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
@@ -136,6 +168,28 @@ export const IkeSessionDetailPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Handshake Story (Plain English) */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-3">
+        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+          <h2 className="text-sm font-bold text-white flex items-center gap-2">
+            <span>📖</span> Handshake Story <span className="text-xs font-normal text-slate-400 font-mono">(Plain English)</span>
+          </h2>
+          <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-sky-950 text-sky-300 border border-sky-800/80">
+            Step-by-step
+          </span>
+        </div>
+        <div className="space-y-2">
+          {storySteps.map((step: string, idx: number) => (
+            <div key={idx} className="flex items-start gap-3 p-2.5 rounded-lg bg-slate-950/60 border border-slate-800/80 text-xs text-slate-300">
+              <span className="w-5 h-5 rounded-full bg-slate-800 text-sky-400 font-bold flex items-center justify-center flex-shrink-0 text-[10px]">
+                {idx + 1}
+              </span>
+              <p className="leading-relaxed mt-0.5">{step}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Handshake Ladder Diagram */}
       <HandshakeLadder
         initiatorIp={session.initiator_ip || 'Initiator'}
@@ -158,11 +212,21 @@ export const IkeSessionDetailPage: React.FC = () => {
           ) : (
             <div className="space-y-2">
               {vendorIds.map((v: any, idx: number) => {
-                const vidName = typeof v === 'string' ? v : v.vendor || v.raw_hex;
+                const rawVal = typeof v === 'string' ? v : v.vendor || v.raw_hex || '';
+                const decodedAscii = tryDecodeHexAscii(rawVal);
                 return (
                   <div key={idx} className="p-2.5 rounded-lg bg-slate-950/60 border border-slate-800/80 text-xs font-mono flex items-center justify-between">
-                    <span className="text-sky-300">{vidName}</span>
-                    <span className="text-[10px] text-slate-500 uppercase">Vendor Hash</span>
+                    <div>
+                      {decodedAscii ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-emerald-400 font-semibold">{decodedAscii}</span>
+                          <span className="text-[11px] text-slate-500 font-mono">({rawVal.slice(0, 16)}...)</span>
+                        </div>
+                      ) : (
+                        <span className="text-sky-300 font-mono">{rawVal}</span>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-slate-500 uppercase">{decodedAscii ? 'Decoded Text' : 'Vendor Hash'}</span>
                   </div>
                 );
               })}

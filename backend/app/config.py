@@ -61,7 +61,9 @@ class AppSettings(BaseSettings):
             v = v.strip()
             if v.startswith("[") and v.endswith("]"):
                 try:
-                    return json.loads(v)
+                    parsed = json.loads(v)
+                    if isinstance(parsed, list):
+                        return [str(item) for item in parsed]
                 except Exception:
                     pass
             return [origin.strip() for origin in v.split(",") if origin.strip()]
