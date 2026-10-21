@@ -47,6 +47,14 @@ async def preview_html_report(
     if not path.exists():
         raise AppError(code="NOT_FOUND", message="Report not generated.", status_code=404)
 
+    if fmt == "pdf":
+        return FileResponse(
+            path=path,
+            media_type="application/pdf",
+            filename=f"ipsecscope_report_{id[:8]}.pdf",
+            headers={"Content-Disposition": f'inline; filename="ipsecscope_report_{id[:8]}.pdf"'},
+        )
+
     text_content = path.read_text(encoding="utf-8")
     if fmt == "json":
         return Response(content=text_content, media_type="application/json")

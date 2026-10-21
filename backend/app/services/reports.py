@@ -354,6 +354,28 @@ def _build_html_report(
         .section-title {{ font-size: 18px; font-weight: 700; color: #f1f5f9; margin-top: 32px; margin-bottom: 12px; border-bottom: 1px solid #334155; padding-bottom: 6px; }}
         table {{ width: 100%; border-collapse: collapse; background: #1e293b; border-radius: 8px; overflow: hidden; }}
         th {{ background: #0f172a; text-align: left; padding: 10px; color: #94a3b8; font-size: 12px; text-transform: uppercase; }}
+        @media print {{
+            body {{
+                background-color: #ffffff !important;
+                color: #0f172a !important;
+                padding: 10px !important;
+            }}
+            .header, .section-title {{
+                border-color: #cbd5e1 !important;
+            }}
+            .report-card, .metric-card, table, tr, td, th {{
+                background: #ffffff !important;
+                color: #0f172a !important;
+                border-color: #cbd5e1 !important;
+                page-break-inside: avoid;
+            }}
+            .metric-val {{
+                color: #0284c7 !important;
+            }}
+            .metric-lbl {{
+                color: #475569 !important;
+            }}
+        }}
     </style>
 </head>
 <body>
@@ -464,14 +486,17 @@ def _build_pdf_report(
     flows: list[dict[str, Any]],
     recommendations: list[dict[str, Any]],
 ) -> None:
-    """Generate professional audit PDF using WeasyPrint (if available) or ReportLab."""
-    try:
-        import weasyprint
-        html_content = _build_html_report(analysis, upload, findings, sessions, flows, recommendations)
-        weasyprint.HTML(string=html_content).write_pdf(str(filepath))
-        return
-    except Exception:
-        pass
+    import sys
+
+    # On non-Windows platforms, Weasyprint may be used if installed with system pango/cairo
+    if sys.platform != "win32":
+        try:
+            import weasyprint
+            html_content = _build_html_report(analysis, upload, findings, sessions, flows, recommendations)
+            weasyprint.HTML(string=html_content).write_pdf(str(filepath))
+            return
+        except Exception:
+            pass
 
     # ReportLab fallback
     from reportlab.lib import colors
